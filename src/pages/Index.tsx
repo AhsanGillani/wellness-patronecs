@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import SiteHeader from "@/components/site/SiteHeader";
 import SiteHero from "@/components/site/SiteHero";
 import ServiceCategories from "@/components/site/ServiceCategories";
 import CommunityQA from "@/components/site/CommunityQA";
@@ -32,15 +33,18 @@ const Index = () => {
   }, []);
 
   return (
-    <main>
-      <SiteHero />
-      <ServiceCategories />
-      <CommunityQA />
-      <Testimonials />
-      <BookingSection />
-      <ArticlesGrid />
-      <SiteFooter />
-    </main>
+    <>
+      <SiteHeader />
+      <main>
+        <SiteHero />
+        <ServiceCategories />
+        <CommunityQA />
+        <Testimonials />
+        <BookingSection />
+        <ArticlesGrid />
+        <SiteFooter />
+      </main>
+    </>
   );
 };
 
