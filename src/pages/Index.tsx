@@ -1,13 +1,46 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useEffect } from "react";
+import SiteHero from "@/components/site/SiteHero";
+import ServiceCategories from "@/components/site/ServiceCategories";
+import CommunityQA from "@/components/site/CommunityQA";
+import Testimonials from "@/components/site/Testimonials";
+import BookingSection from "@/components/site/BookingSection";
+import ArticlesGrid from "@/components/site/ArticlesGrid";
+import SiteFooter from "@/components/site/SiteFooter";
 
 const Index = () => {
+  useEffect(() => {
+    document.title = "Wellness Platform | Connect with Health Professionals";
+    const meta = document.querySelector('meta[name="description"]');
+    if (meta) meta.setAttribute("content", "Book trusted doctors, nutritionists, psychologists and more. Wellness services, Q&A, articles, and tips.");
+
+    // JSON-LD structured data (WebSite)
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.text = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: "Wellness Platform",
+      url: window.location.origin,
+      potentialAction: {
+        "@type": "SearchAction",
+        target: `${window.location.origin}/?q={search_term_string}`,
+        "query-input": "required name=search_term_string"
+      }
+    });
+    document.head.appendChild(script);
+    return () => { document.head.removeChild(script); };
+  }, []);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <main>
+      <SiteHero />
+      <ServiceCategories />
+      <CommunityQA />
+      <Testimonials />
+      <BookingSection />
+      <ArticlesGrid />
+      <SiteFooter />
+    </main>
   );
 };
 
