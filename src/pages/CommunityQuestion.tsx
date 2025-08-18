@@ -12,7 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { answerSchema, type AnswerFormData } from "@/lib/validations";
-import { supabase } from "@/integrations/supabase/client";
+import { simpleSupabase } from "@/lib/simple-supabase";
 
 const CommunityQuestion = () => {
   const { id } = useParams<{ id: string }>();
@@ -40,7 +40,7 @@ const CommunityQuestion = () => {
 
   useEffect(() => {
     // Check auth status
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    simpleSupabase.auth.getUser().then(({ data: { user } }) => {
       setIsAuthenticated(!!user);
     });
   }, []);

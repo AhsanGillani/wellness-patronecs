@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
+import { simpleSupabase } from "@/lib/simple-supabase";
 import { useCreateQuestion, useTopics } from "@/hooks/useCommunity";
 import { questionSchema, type QuestionFormData } from "@/lib/validations";
 
@@ -35,7 +35,7 @@ export function CreateQuestionForm({ onSuccess, topicId }: CreateQuestionFormPro
 
   useEffect(() => {
     // Check auth status
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    simpleSupabase.auth.getUser().then(({ data: { user } }) => {
       setIsAuthenticated(!!user);
     });
   }, []);

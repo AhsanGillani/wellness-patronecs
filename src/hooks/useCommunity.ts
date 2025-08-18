@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { simpleSupabase } from "@/lib/simple-supabase";
 import { getGuestFingerprint } from "@/lib/guest-fingerprint";
 import { toast } from "sonner";
 
@@ -40,95 +40,102 @@ export interface Answer {
   score?: number;
 }
 
+// Query functions
+async function fetchTopics(): Promise<Topic[]> {
+  const { data, error } = await simpleSupabase
+    .from('community_topics')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []) as Topic[];
+}
+
+async function fetchTopic(slug: string): Promise<Topic | null> {
+  const { data, error } = await simpleSupabase
+    .from('community_topics')
+    .select('*')
+    .eq('slug', slug)
+    .eq('status', 'published')
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as Topic | null;
+}
+
+async function fetchQuestions(topicId?: string): Promise<Question[]> {
+  let query = simpleSupabase
+    .from('community_questions')
+    .select('*')
+    .eq('status', 'published');
+
+  if (topicId) {
+    query = query.eq('topic_id', topicId);
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []) as Question[];
+}
+
+async function fetchQuestion(id: string): Promise<Question | null> {
+  const { data, error } = await simpleSupabase
+    .from('community_questions')
+    .select('*')
+    .eq('id', id)
+    .eq('status', 'published')
+    .maybeSingle();
+
+  if (error) throw error;
+  return data as Question | null;
+}
+
+async function fetchAnswers(questionId: string): Promise<Answer[]> {
+  const { data, error } = await simpleSupabase
+    .from('community_answers')
+    .select('*')
+    .eq('question_id', questionId)
+    .eq('status', 'published')
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+  return (data || []) as Answer[];
+}
+
 // Hooks for fetching data
 export function useTopics() {
   return useQuery({
     queryKey: ['community', 'topics'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('community_topics')
-        .select(`
-          *
-        `)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    },
+    queryFn: fetchTopics,
   });
 }
 
 export function useTopic(slug: string) {
   return useQuery({
     queryKey: ['community', 'topic', slug],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('community_topics')
-        .select('*')
-        .eq('slug', slug)
-        .eq('status', 'published')
-        .maybeSingle();
-
-      if (error) throw error;
-      return data as Topic | null;
-    },
+    queryFn: () => fetchTopic(slug),
   });
 }
 
 export function useQuestions(topicId?: string) {
   return useQuery({
     queryKey: ['community', 'questions', topicId],
-    queryFn: async () => {
-      let query = supabase
-        .from('community_questions')
-        .select(`
-          *
-        `)
-        .eq('status', 'published');
-
-      if (topicId) {
-        query = query.eq('topic_id', topicId);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as Question[];
-    },
+    queryFn: () => fetchQuestions(topicId),
   });
 }
 
 export function useQuestion(id: string) {
   return useQuery({
     queryKey: ['community', 'question', id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('community_questions')
-        .select('*')
-        .eq('id', id)
-        .eq('status', 'published')
-        .maybeSingle();
-
-      if (error) throw error;
-      return data as Question | null;
-    },
+    queryFn: () => fetchQuestion(id),
   });
 }
 
 export function useAnswers(questionId: string) {
   return useQuery({
     queryKey: ['community', 'answers', questionId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('community_answers')
-        .select('*')
-        .eq('question_id', questionId)
-        .eq('status', 'published')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data as Answer[];
-    },
+    queryFn: () => fetchAnswers(questionId),
   });
 }
 
@@ -145,7 +152,7 @@ export function useCreateTopic() {
       };
 
       // Check if user is authenticated
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await simpleSupabase.auth.getUser();
       
       if (user) {
         insertData.user_id = user.id;
@@ -154,7 +161,7 @@ export function useCreateTopic() {
         insertData.guest_fingerprint = getGuestFingerprint();
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await simpleSupabase
         .from('community_topics')
         .insert(insertData)
         .select()
@@ -167,7 +174,7 @@ export function useCreateTopic() {
       queryClient.invalidateQueries({ queryKey: ['community', 'topics'] });
       toast.success('Topic created successfully!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Failed to create topic: ' + error.message);
     },
   });
@@ -186,7 +193,7 @@ export function useCreateQuestion() {
       };
 
       // Check if user is authenticated
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await simpleSupabase.auth.getUser();
       
       if (user) {
         insertData.user_id = user.id;
@@ -195,7 +202,7 @@ export function useCreateQuestion() {
         insertData.guest_fingerprint = getGuestFingerprint();
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await simpleSupabase
         .from('community_questions')
         .insert(insertData)
         .select()
@@ -208,7 +215,7 @@ export function useCreateQuestion() {
       queryClient.invalidateQueries({ queryKey: ['community', 'questions'] });
       toast.success('Question posted successfully!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Failed to post question: ' + error.message);
     },
   });
@@ -225,7 +232,7 @@ export function useCreateAnswer() {
       };
 
       // Check if user is authenticated
-      const { data: { user } } = await supabase.auth.getUser();
+      const { data: { user } } = await simpleSupabase.auth.getUser();
       
       if (user) {
         insertData.user_id = user.id;
@@ -234,7 +241,7 @@ export function useCreateAnswer() {
         insertData.guest_fingerprint = getGuestFingerprint();
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await simpleSupabase
         .from('community_answers')
         .insert(insertData)
         .select()
@@ -247,7 +254,7 @@ export function useCreateAnswer() {
       queryClient.invalidateQueries({ queryKey: ['community', 'answers'] });
       toast.success('Answer posted successfully!');
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error('Failed to post answer: ' + error.message);
     },
   });

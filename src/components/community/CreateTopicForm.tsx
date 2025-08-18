@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { simpleSupabase } from "@/lib/simple-supabase";
 import { useCreateTopic } from "@/hooks/useCommunity";
 import { topicSchema, type TopicFormData } from "@/lib/validations";
 
@@ -29,7 +29,7 @@ export function CreateTopicForm({ onSuccess }: CreateTopicFormProps) {
 
   useEffect(() => {
     // Check auth status
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    simpleSupabase.auth.getUser().then(({ data: { user } }) => {
       setIsAuthenticated(!!user);
     });
   }, []);
