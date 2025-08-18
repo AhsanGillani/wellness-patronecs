@@ -7,14 +7,170 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
   }
   public: {
     Tables: {
-      [_ in never]: never
+      community_answers: {
+        Row: {
+          body: string
+          created_at: string
+          guest_fingerprint: string | null
+          guest_name: string | null
+          id: string
+          is_from_professional: boolean
+          is_verified: boolean
+          question_id: string
+          status: Database["public"]["Enums"]["post_status"]
+          user_id: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          guest_fingerprint?: string | null
+          guest_name?: string | null
+          id?: string
+          is_from_professional?: boolean
+          is_verified?: boolean
+          question_id: string
+          status?: Database["public"]["Enums"]["post_status"]
+          user_id?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          guest_fingerprint?: string | null
+          guest_name?: string | null
+          id?: string
+          is_from_professional?: boolean
+          is_verified?: boolean
+          question_id?: string
+          status?: Database["public"]["Enums"]["post_status"]
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "community_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_questions: {
+        Row: {
+          body: string
+          created_at: string
+          guest_fingerprint: string | null
+          guest_name: string | null
+          id: string
+          is_anonymous: boolean
+          status: Database["public"]["Enums"]["post_status"]
+          title: string
+          topic_id: string
+          user_id: string | null
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          guest_fingerprint?: string | null
+          guest_name?: string | null
+          id?: string
+          is_anonymous?: boolean
+          status?: Database["public"]["Enums"]["post_status"]
+          title: string
+          topic_id: string
+          user_id?: string | null
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          guest_fingerprint?: string | null
+          guest_name?: string | null
+          id?: string
+          is_anonymous?: boolean
+          status?: Database["public"]["Enums"]["post_status"]
+          title?: string
+          topic_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_questions_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "community_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_topics: {
+        Row: {
+          created_at: string
+          description: string | null
+          guest_fingerprint: string | null
+          guest_name: string | null
+          id: string
+          slug: string
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          guest_fingerprint?: string | null
+          guest_name?: string | null
+          id?: string
+          slug: string
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          guest_fingerprint?: string | null
+          guest_name?: string | null
+          id?: string
+          slug?: string
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      community_votes: {
+        Row: {
+          created_at: string
+          entity_id: string
+          guest_fingerprint: string | null
+          id: string
+          target: Database["public"]["Enums"]["vote_target"]
+          user_id: string | null
+          vote: number
+        }
+        Insert: {
+          created_at?: string
+          entity_id: string
+          guest_fingerprint?: string | null
+          id?: string
+          target: Database["public"]["Enums"]["vote_target"]
+          user_id?: string | null
+          vote: number
+        }
+        Update: {
+          created_at?: string
+          entity_id?: string
+          guest_fingerprint?: string | null
+          id?: string
+          target?: Database["public"]["Enums"]["vote_target"]
+          user_id?: string | null
+          vote?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +179,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      post_status: "published" | "hidden" | "deleted"
+      vote_target: "question" | "answer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +307,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      post_status: ["published", "hidden", "deleted"],
+      vote_target: ["question", "answer"],
+    },
   },
 } as const
