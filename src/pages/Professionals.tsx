@@ -1,7 +1,7 @@
 import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import Button from "@/components/ui/button";
-import { professionals } from "@/lib/mockData";
+import { useProfessionals } from "@/hooks/useDatabase";
 import { getAggregated } from "@/lib/ratings";
 
 const Stars = ({ value }: { value: number }) => {
@@ -33,7 +33,8 @@ const Stars = ({ value }: { value: number }) => {
 };
 
 const Professionals = () => {
-  const specialties = ["Cardiology", "Nutrition", "Psychology", "Physiotherapy", "Dermatology", "Pediatrics"]; 
+  const { professionals, loading, error } = useProfessionals();
+  const specialties = ["Cardiology", "Nutrition", "Psychology", "Physiotherapy", "Dermatology", "Pediatrics"];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
@@ -102,41 +103,71 @@ const Professionals = () => {
             </div>
 
             <div className="mt-6 grid gap-6">
-              {professionals.map((p) => {
-                const agg = getAggregated(p.id, p.rating, p.reviews);
-                const displayRating = agg.rating;
-                const displayReviews = agg.reviews;
-                return (
-                <div key={p.id} className="rounded-2xl border bg-white p-5 sm:p-6">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-5">
-                    <img src={p.image} alt={p.name} className="h-16 w-16 rounded-full object-cover" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                        <div className="text-base font-semibold text-slate-900">{p.name}</div>
-                        <div className="hidden sm:block text-slate-300">•</div>
-                        <div className="text-sm text-slate-600">{p.title} • {p.years} yrs</div>
-                      </div>
-                      <div className="mt-1 flex items-center gap-2">
-                        <Stars value={displayRating} />
-                        <div className="text-sm text-slate-600">{displayRating} ({displayReviews})</div>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {p.tags.map((t) => (
-                          <span key={t} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{t}</span>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="w-full sm:w-auto sm:text-right">
-                      <div className="text-sm text-slate-600">Starting at</div>
-                      <div className="text-base font-semibold text-slate-900">{p.price}</div>
-                      <div className="mt-3 flex gap-2 sm:justify-end">
-                        <Button as="link" to={`/professional/${p.id}`} variant="secondary">View profile</Button>
-                        <Button as="link" to={`/book/${p.id}`}>Book</Button>
-                      </div>
-                    </div>
-                  </div>
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mx-auto"></div>
+                  <p className="mt-2 text-slate-600">Loading professionals...</p>
                 </div>
-              );})}
+              ) : error ? (
+                <div className="text-center py-12">
+                  <p className="text-red-600">Error loading professionals: {error}</p>
+                </div>
+              ) : professionals?.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-slate-600">No professionals found.</p>
+                </div>
+              ) : (
+                professionals?.map((p) => {
+                  const agg = getAggregated(Number(p.id), 4.5, 25); // Fallback ratings
+                  const displayRating = agg.rating;
+                  const displayReviews = agg.reviews;
+                  const profileData = p.profiles || {};
+                  
+                  return (
+                    <div key={p.id} className="rounded-2xl border bg-white p-5 sm:p-6">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                        <img 
+                          src={profileData.avatar_url || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400"} 
+                          alt={`${profileData.first_name || 'Professional'} ${profileData.last_name || ''}`} 
+                          className="h-16 w-16 rounded-full object-cover" 
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                            <div className="text-base font-semibold text-slate-900">
+                              {profileData.first_name} {profileData.last_name}
+                            </div>
+                            <div className="hidden sm:block text-slate-300">•</div>
+                            <div className="text-sm text-slate-600">
+                              {p.profession || 'Professional'} • {p.years_experience || 0} yrs
+                            </div>
+                          </div>
+                          <div className="mt-1 flex items-center gap-2">
+                            <Stars value={displayRating} />
+                            <div className="text-sm text-slate-600">{displayRating} ({displayReviews})</div>
+                          </div>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {p.specialization && (
+                              <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">
+                                {p.specialization}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="w-full sm:w-auto sm:text-right">
+                          <div className="text-sm text-slate-600">Starting at</div>
+                          <div className="text-base font-semibold text-slate-900">
+                            ${p.price_per_session ? (p.price_per_session / 100).toFixed(0) : '50'}
+                          </div>
+                          <div className="mt-3 flex gap-2 sm:justify-end">
+                            <Button as="link" to={`/professional/${p.slug}`} variant="secondary">View profile</Button>
+                            <Button as="link" to={`/book/${p.id}`}>Book</Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
             <div className="mt-6 flex items-center justify-between">
