@@ -136,7 +136,7 @@ const Header = () => {
               <Link to="/login" className="text-sm font-medium text-slate-700 hover:text-slate-900">
                 Login
               </Link>
-              <Button as="link" to="/signup/patient" size="sm">
+              <Button as="link" to="/signup" size="sm">
                 Get Started
               </Button>
             </div>
