@@ -14,173 +14,667 @@ export type Database = {
   }
   public: {
     Tables: {
-      community_answers: {
+      appointments: {
         Row: {
-          body: string
+          appointment_status: Database["public"]["Enums"]["appointment_status"]
           created_at: string
-          guest_fingerprint: string | null
-          guest_name: string | null
-          id: string
-          is_from_professional: boolean
-          is_verified: boolean
-          question_id: string
-          status: Database["public"]["Enums"]["post_status"]
-          user_id: string | null
+          date: string
+          end_time: string
+          id: number
+          location_address: string | null
+          mode: Database["public"]["Enums"]["service_mode"]
+          patient_profile_id: string
+          payment_status: Database["public"]["Enums"]["payment_status"]
+          price_cents: number
+          service_id: number
+          start_time: string
+          transaction_id: string | null
         }
         Insert: {
-          body: string
+          appointment_status?: Database["public"]["Enums"]["appointment_status"]
           created_at?: string
-          guest_fingerprint?: string | null
-          guest_name?: string | null
-          id?: string
-          is_from_professional?: boolean
-          is_verified?: boolean
-          question_id: string
-          status?: Database["public"]["Enums"]["post_status"]
-          user_id?: string | null
+          date: string
+          end_time: string
+          id?: number
+          location_address?: string | null
+          mode: Database["public"]["Enums"]["service_mode"]
+          patient_profile_id: string
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          price_cents: number
+          service_id: number
+          start_time: string
+          transaction_id?: string | null
         }
         Update: {
-          body?: string
+          appointment_status?: Database["public"]["Enums"]["appointment_status"]
           created_at?: string
-          guest_fingerprint?: string | null
-          guest_name?: string | null
-          id?: string
-          is_from_professional?: boolean
-          is_verified?: boolean
-          question_id?: string
-          status?: Database["public"]["Enums"]["post_status"]
-          user_id?: string | null
+          date?: string
+          end_time?: string
+          id?: number
+          location_address?: string | null
+          mode?: Database["public"]["Enums"]["service_mode"]
+          patient_profile_id?: string
+          payment_status?: Database["public"]["Enums"]["payment_status"]
+          price_cents?: number
+          service_id?: number
+          start_time?: string
+          transaction_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "community_answers_question_id_fkey"
-            columns: ["question_id"]
+            foreignKeyName: "appointments_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
             isOneToOne: false
-            referencedRelation: "community_questions"
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
             referencedColumns: ["id"]
           },
         ]
       }
-      community_questions: {
+      availability_slots: {
         Row: {
-          body: string
           created_at: string
-          guest_fingerprint: string | null
-          guest_name: string | null
+          end_time: string
           id: string
-          is_anonymous: boolean
-          status: Database["public"]["Enums"]["post_status"]
-          title: string
-          topic_id: string
-          user_id: string | null
+          is_booked: boolean
+          professional_id: string
+          start_time: string
         }
         Insert: {
-          body: string
           created_at?: string
-          guest_fingerprint?: string | null
-          guest_name?: string | null
+          end_time: string
           id?: string
-          is_anonymous?: boolean
-          status?: Database["public"]["Enums"]["post_status"]
-          title: string
-          topic_id: string
-          user_id?: string | null
+          is_booked?: boolean
+          professional_id: string
+          start_time: string
         }
         Update: {
-          body?: string
           created_at?: string
-          guest_fingerprint?: string | null
-          guest_name?: string | null
+          end_time?: string
           id?: string
-          is_anonymous?: boolean
-          status?: Database["public"]["Enums"]["post_status"]
-          title?: string
-          topic_id?: string
-          user_id?: string | null
+          is_booked?: boolean
+          professional_id?: string
+          start_time?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "community_questions_topic_id_fkey"
-            columns: ["topic_id"]
-            isOneToOne: false
-            referencedRelation: "community_topics"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
-      community_topics: {
+      blog_posts: {
         Row: {
+          author_user_id: string | null
+          body: string
+          cover_url: string | null
           created_at: string
-          description: string | null
-          guest_fingerprint: string | null
-          guest_name: string | null
           id: string
           slug: string
+          tags: string[] | null
           title: string
-          user_id: string | null
+          visibility: Database["public"]["Enums"]["post_visibility"]
         }
         Insert: {
+          author_user_id?: string | null
+          body: string
+          cover_url?: string | null
           created_at?: string
-          description?: string | null
-          guest_fingerprint?: string | null
-          guest_name?: string | null
           id?: string
           slug: string
+          tags?: string[] | null
           title: string
-          user_id?: string | null
+          visibility?: Database["public"]["Enums"]["post_visibility"]
         }
         Update: {
+          author_user_id?: string | null
+          body?: string
+          cover_url?: string | null
           created_at?: string
-          description?: string | null
-          guest_fingerprint?: string | null
-          guest_name?: string | null
           id?: string
           slug?: string
+          tags?: string[] | null
           title?: string
+          visibility?: Database["public"]["Enums"]["post_visibility"]
+        }
+        Relationships: []
+      }
+      bookings: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          patient_user_id: string
+          professional_user_id: string
+          service_id: string
+          slot_id: string
+          status: Database["public"]["Enums"]["booking_status"]
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          patient_user_id: string
+          professional_user_id: string
+          service_id: string
+          slot_id: string
+          status?: Database["public"]["Enums"]["booking_status"]
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          patient_user_id?: string
+          professional_user_id?: string
+          service_id?: string
+          slot_id?: string
+          status?: Database["public"]["Enums"]["booking_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "availability_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      categories: {
+        Row: {
+          created_at: string
+          id: number
+          kind: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          kind?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          kind?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          agenda: Json | null
+          category_id: number | null
+          created_at: string
+          date: string
+          details: string | null
+          end_time: string | null
+          host_professional_id: string
+          id: number
+          image_url: string | null
+          location: string | null
+          registration_url: string | null
+          rejection_reason: string | null
+          slug: string
+          start_time: string | null
+          status: Database["public"]["Enums"]["event_status"]
+          summary: string | null
+          ticket_price_cents: number | null
+          title: string
+          type: string
+        }
+        Insert: {
+          agenda?: Json | null
+          category_id?: number | null
+          created_at?: string
+          date: string
+          details?: string | null
+          end_time?: string | null
+          host_professional_id: string
+          id?: number
+          image_url?: string | null
+          location?: string | null
+          registration_url?: string | null
+          rejection_reason?: string | null
+          slug: string
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["event_status"]
+          summary?: string | null
+          ticket_price_cents?: number | null
+          title: string
+          type?: string
+        }
+        Update: {
+          agenda?: Json | null
+          category_id?: number | null
+          created_at?: string
+          date?: string
+          details?: string | null
+          end_time?: string | null
+          host_professional_id?: string
+          id?: number
+          image_url?: string | null
+          location?: string | null
+          registration_url?: string | null
+          rejection_reason?: string | null
+          slug?: string
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["event_status"]
+          summary?: string | null
+          ticket_price_cents?: number | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "events_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "events_host_professional_id_fkey"
+            columns: ["host_professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback: {
+        Row: {
+          additional_comments: string | null
+          appointment_id: number | null
+          created_at: string
+          feedback_text: string | null
+          id: number
+          patient_profile_id: string | null
+          professional_id: string
+          rating: number
+          session_quality: Json | null
+          would_recommend: boolean | null
+        }
+        Insert: {
+          additional_comments?: string | null
+          appointment_id?: number | null
+          created_at?: string
+          feedback_text?: string | null
+          id?: number
+          patient_profile_id?: string | null
+          professional_id: string
+          rating: number
+          session_quality?: Json | null
+          would_recommend?: boolean | null
+        }
+        Update: {
+          additional_comments?: string | null
+          appointment_id?: number | null
+          created_at?: string
+          feedback_text?: string | null
+          id?: number
+          patient_profile_id?: string | null
+          professional_id?: string
+          rating?: number
+          session_quality?: Json | null
+          would_recommend?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      professionals: {
+        Row: {
+          bio: string | null
+          created_at: string
+          id: string
+          profession: string | null
+          profile_id: string
+          slug: string
+          specialization: string | null
+          verification: string | null
+          years_experience: number | null
+        }
+        Insert: {
+          bio?: string | null
+          created_at?: string
+          id?: string
+          profession?: string | null
+          profile_id: string
+          slug: string
+          specialization?: string | null
+          verification?: string | null
+          years_experience?: number | null
+        }
+        Update: {
+          bio?: string | null
+          created_at?: string
+          id?: string
+          profession?: string | null
+          profile_id?: string
+          slug?: string
+          specialization?: string | null
+          verification?: string | null
+          years_experience?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professionals_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          slug: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          slug: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          slug?: string
+          updated_at?: string
           user_id?: string | null
         }
         Relationships: []
       }
-      community_votes: {
+      services: {
+        Row: {
+          active: boolean
+          availability: Json | null
+          benefits: Json | null
+          category_id: number | null
+          created_at: string
+          description: string | null
+          duration_min: number
+          id: number
+          image_url: string | null
+          mode: Database["public"]["Enums"]["service_mode"]
+          name: string
+          price_cents: number
+          professional_id: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          availability?: Json | null
+          benefits?: Json | null
+          category_id?: number | null
+          created_at?: string
+          description?: string | null
+          duration_min: number
+          id?: number
+          image_url?: string | null
+          mode?: Database["public"]["Enums"]["service_mode"]
+          name: string
+          price_cents?: number
+          professional_id: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          availability?: Json | null
+          benefits?: Json | null
+          category_id?: number | null
+          created_at?: string
+          description?: string | null
+          duration_min?: number
+          id?: number
+          image_url?: string | null
+          mode?: Database["public"]["Enums"]["service_mode"]
+          name?: string
+          price_cents?: number
+          professional_id?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "services_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "services_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tickets: {
         Row: {
           created_at: string
-          entity_id: string
-          guest_fingerprint: string | null
+          event_id: string
           id: string
-          target: Database["public"]["Enums"]["vote_target"]
-          user_id: string | null
-          vote: number
+          quantity: number
+          status: string
+          user_id: string
         }
         Insert: {
           created_at?: string
-          entity_id: string
-          guest_fingerprint?: string | null
+          event_id: string
           id?: string
-          target: Database["public"]["Enums"]["vote_target"]
-          user_id?: string | null
-          vote: number
+          quantity?: number
+          status?: string
+          user_id: string
         }
         Update: {
           created_at?: string
-          entity_id?: string
-          guest_fingerprint?: string | null
+          event_id?: string
           id?: string
-          target?: Database["public"]["Enums"]["vote_target"]
-          user_id?: string | null
-          vote?: number
+          quantity?: number
+          status?: string
+          user_id?: string
         }
         Relationships: []
+      }
+      transactions: {
+        Row: {
+          amount_cents: number
+          appointment_id: number | null
+          created_at: string
+          event_id: number | null
+          fee_cents: number | null
+          id: number
+          method: string | null
+          net_cents: number | null
+          professional_id: string | null
+          status: string | null
+          user_profile_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          appointment_id?: number | null
+          created_at?: string
+          event_id?: number | null
+          fee_cents?: number | null
+          id?: number
+          method?: string | null
+          net_cents?: number | null
+          professional_id?: string | null
+          status?: string | null
+          user_profile_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          appointment_id?: number | null
+          created_at?: string
+          event_id?: number | null
+          fee_cents?: number | null
+          id?: number
+          method?: string | null
+          net_cents?: number | null
+          professional_id?: string | null
+          status?: string | null
+          user_profile_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_user_profile_id_fkey"
+            columns: ["user_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      withdrawals: {
+        Row: {
+          amount_cents: number
+          approved_at: string | null
+          id: number
+          method: Database["public"]["Enums"]["withdraw_method"]
+          payout_details: Json | null
+          professional_id: string
+          requested_at: string
+          status: Database["public"]["Enums"]["withdraw_status"]
+          transferred_at: string | null
+        }
+        Insert: {
+          amount_cents: number
+          approved_at?: string | null
+          id?: number
+          method: Database["public"]["Enums"]["withdraw_method"]
+          payout_details?: Json | null
+          professional_id: string
+          requested_at?: string
+          status?: Database["public"]["Enums"]["withdraw_status"]
+          transferred_at?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          approved_at?: string | null
+          id?: number
+          method?: Database["public"]["Enums"]["withdraw_method"]
+          payout_details?: Json | null
+          professional_id?: string
+          requested_at?: string
+          status?: Database["public"]["Enums"]["withdraw_status"]
+          transferred_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "withdrawals_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
-      [_ in never]: never
+      professional_ratings: {
+        Row: {
+          professional_id: string | null
+          rating: number | null
+          reviews: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       [_ in never]: never
     }
     Enums: {
+      appointment_status: "scheduled" | "completed" | "cancelled" | "no_show"
+      booking_status: "pending" | "confirmed" | "cancelled"
+      event_status: "pending" | "approved" | "rejected" | "cancelled"
+      payment_status: "pending" | "paid" | "refunded" | "failed"
       post_status: "published" | "hidden" | "deleted"
+      post_visibility: "draft" | "published"
+      service_mode: "In-person" | "Virtual"
+      user_role: "patient" | "professional"
       vote_target: "question" | "answer"
+      withdraw_method: "Bank" | "PayPal" | "Stripe"
+      withdraw_status: "requested" | "approved" | "transferred"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -308,8 +802,17 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      appointment_status: ["scheduled", "completed", "cancelled", "no_show"],
+      booking_status: ["pending", "confirmed", "cancelled"],
+      event_status: ["pending", "approved", "rejected", "cancelled"],
+      payment_status: ["pending", "paid", "refunded", "failed"],
       post_status: ["published", "hidden", "deleted"],
+      post_visibility: ["draft", "published"],
+      service_mode: ["In-person", "Virtual"],
+      user_role: ["patient", "professional"],
       vote_target: ["question", "answer"],
+      withdraw_method: ["Bank", "PayPal", "Stripe"],
+      withdraw_status: ["requested", "approved", "transferred"],
     },
   },
 } as const
