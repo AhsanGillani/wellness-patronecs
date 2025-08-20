@@ -8,7 +8,7 @@ import { useState } from "react";
 
 type Service = NonNullable<typeof professionals[number]["services"]>[number];
 
-const ServicesTabs = ({ services = [], profId }: { services?: Service[]; profId: number }) => {
+const ServicesTabs = ({ services = [], profId, prof }: { services?: Service[]; profId: number; prof: any }) => {
   const [active, setActive] = useState<"services" | "reviews">("services");
   const agg = getAggregated(prof.id, prof.rating, prof.reviews);
   return (
@@ -120,14 +120,14 @@ const Professional = () => {
                 <p className="mt-2 text-slate-700 leading-relaxed">{prof.about || prof.bio}</p>
               </div>
 
-              <div className="rounded-2xl border bg-white p-0 overflow-hidden">
-                <ServicesTabs services={prof.services} profId={prof.id} />
-              </div>
+            <div className="rounded-2xl border bg-white p-0 overflow-hidden">
+              <ServicesTabs services={prof.services} profId={prof.id} prof={prof} />
+            </div>
 
-              <div className="rounded-2xl border bg-white p-6">
-                <h2 className="text-lg font-semibold text-slate-900">Reviews</h2>
-                <div className="mt-2 text-slate-700">Rated {agg.rating} by {agg.reviews}+ patients.</div>
-              </div>
+            <div className="rounded-2xl border bg-white p-6">
+              <h2 className="text-lg font-semibold text-slate-900">Reviews</h2>
+              <div className="mt-2 text-slate-700">Rated {getAggregated(prof.id, prof.rating, prof.reviews).rating} by {getAggregated(prof.id, prof.rating, prof.reviews).reviews}+ patients.</div>
+            </div>
             </div>
           </section>
 

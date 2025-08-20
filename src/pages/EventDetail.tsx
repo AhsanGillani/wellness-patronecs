@@ -46,7 +46,6 @@ const EventDetail = () => {
 
             <div className="rounded-2xl border bg-white p-6">
               <h2 className="text-lg font-semibold text-slate-900">Details</h2>
-              {ev.summary && <p className="text-slate-700">{ev.summary}</p>}
               {ev.details && <p className="mt-2 text-slate-700">{ev.details}</p>}
               {ev.agenda && ev.agenda.length > 0 && (
                 <div className="mt-4">

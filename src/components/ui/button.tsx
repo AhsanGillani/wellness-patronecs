@@ -2,13 +2,14 @@ import { AnchorHTMLAttributes, ButtonHTMLAttributes, PropsWithChildren } from "r
 import { Link, type LinkProps } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
-type Variant = "primary" | "secondary" | "ghost";
-type Size = "sm" | "md" | "lg";
+type Variant = "primary" | "secondary" | "ghost" | "outline" | "hero";
+type Size = "sm" | "md" | "lg" | "icon";
 
 type CommonProps = PropsWithChildren<{
   className?: string;
   variant?: Variant;
   size?: Size;
+  asChild?: boolean;
 }>;
 
 type AnchorButtonProps = CommonProps & AnchorHTMLAttributes<HTMLAnchorElement> & { as: "a" };
@@ -22,19 +23,27 @@ const byVariant: Record<Variant, string> = {
   primary: "bg-violet-600 text-white hover:bg-violet-700",
   secondary: "border border-slate-200 text-slate-800 hover:bg-slate-50",
   ghost: "text-slate-700 hover:bg-slate-100",
+  outline: "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+  hero: "bg-white/10 text-white border border-white/20 hover:bg-white/20",
 };
 
 const bySize: Record<Size, string> = {
   sm: "h-8 px-3 text-sm",
   md: "h-10 px-4 text-sm",
   lg: "h-11 px-5 text-base",
+  icon: "h-9 w-9",
+};
+
+// Create buttonVariants function for compatibility
+export const buttonVariants = (props: { variant?: Variant; size?: Size; className?: string }) => {
+  return cn(base, byVariant[props.variant || "primary"], bySize[props.size || "md"], props.className);
 };
 
 export const Button = (props: ButtonProps) => {
-  const { className, variant = "primary", size = "md", children, as = "button" } = props as ButtonProps & { as?: "a" | "button" | "link" };
+  const { className, variant = "primary", size = "md", children, as = "button", asChild } = props as ButtonProps & { as?: "a" | "button" | "link"; asChild?: boolean };
   const classes = cn(base, byVariant[variant], bySize[size], className);
   if (as === "a") {
-    const { as: _as, ...rest } = props as AnchorButtonProps;
+    const { as: _as, asChild: _asChild, ...rest } = props as AnchorButtonProps;
     return (
       <a className={classes} {...rest}>
         {children}
@@ -42,14 +51,14 @@ export const Button = (props: ButtonProps) => {
     );
   }
   if (as === "link") {
-    const { as: _as, ...rest } = props as RouterLinkButtonProps;
+    const { as: _as, asChild: _asChild, ...rest } = props as RouterLinkButtonProps;
     return (
       <Link className={classes} {...rest}>
         {children}
       </Link>
     );
   }
-  const { as: _as, ...rest } = props as NativeButtonProps;
+  const { as: _as, asChild: _asChild, ...rest } = props as NativeButtonProps;
   return (
     <button className={classes} {...rest}>
       {children}
@@ -58,5 +67,6 @@ export const Button = (props: ButtonProps) => {
 };
 
 export default Button;
+export type { ButtonProps };
 
 
