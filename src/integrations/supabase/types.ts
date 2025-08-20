@@ -671,7 +671,7 @@ export type Database = {
       post_status: "published" | "hidden" | "deleted"
       post_visibility: "draft" | "published"
       service_mode: "In-person" | "Virtual"
-      user_role: "patient" | "professional"
+      user_role: "patient" | "professional" | "admin" | "doctor"
       vote_target: "question" | "answer"
       withdraw_method: "Bank" | "PayPal" | "Stripe"
       withdraw_status: "requested" | "approved" | "transferred"
@@ -809,7 +809,7 @@ export const Constants = {
       post_status: ["published", "hidden", "deleted"],
       post_visibility: ["draft", "published"],
       service_mode: ["In-person", "Virtual"],
-      user_role: ["patient", "professional"],
+      user_role: ["patient", "professional", "admin", "doctor"],
       vote_target: ["question", "answer"],
       withdraw_method: ["Bank", "PayPal", "Stripe"],
       withdraw_status: ["requested", "approved", "transferred"],
