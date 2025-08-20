@@ -13,7 +13,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   requiredRole, 
   fallbackPath = '/auth' 
 }) => {
-  const { user, profile, loading } = useAuth();
+  const { user, effectiveRole, loading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -29,18 +29,21 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     }
 
     // If role is required and user doesn't have it
-    if (requiredRole && profile?.role !== requiredRole) {
+    const normalizedEffectiveRole = effectiveRole === 'doctor' ? 'professional' : effectiveRole;
+    const normalizedRequiredRole = requiredRole === 'doctor' ? 'professional' : requiredRole;
+    
+    if (requiredRole && normalizedEffectiveRole !== normalizedRequiredRole) {
       // Redirect based on user's actual role
-      if (profile?.role === 'admin') {
+      if (normalizedEffectiveRole === 'admin') {
         navigate('/admin', { replace: true });
-      } else if (profile?.role === 'doctor' || profile?.role === 'professional') {
+      } else if (normalizedEffectiveRole === 'professional') {
         navigate('/doctor-dashboard', { replace: true });
       } else {
         navigate('/', { replace: true });
       }
       return;
     }
-  }, [user, profile, loading, navigate, requiredRole, fallbackPath]);
+  }, [user, effectiveRole, loading, navigate, requiredRole, fallbackPath]);
 
   // Show loading while checking auth
   if (loading) {
@@ -52,7 +55,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   }
 
   // Don't render if user is not authenticated or doesn't have required role
-  if (!user || (requiredRole && profile?.role !== requiredRole)) {
+  const normalizedEffectiveRole = effectiveRole === 'doctor' ? 'professional' : effectiveRole;
+  const normalizedRequiredRole = requiredRole === 'doctor' ? 'professional' : requiredRole;
+  
+  if (!user || (requiredRole && normalizedEffectiveRole !== normalizedRequiredRole)) {
     return null;
   }
 

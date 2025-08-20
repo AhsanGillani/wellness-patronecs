@@ -6,6 +6,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   profile: any | null;
+  effectiveRole: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signUp: (email: string, password: string, userData?: any) => Promise<{ error: any }>;
@@ -31,6 +32,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
+  const [effectiveRole, setEffectiveRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = async (userId: string) => {
@@ -43,9 +45,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       if (error) throw error;
       setProfile(data);
+      
+      // Get effective role using database function
+      const { data: roleData, error: roleError } = await supabase
+        .rpc('get_current_user_role');
+      
+      if (!roleError && roleData) {
+        setEffectiveRole(roleData);
+      } else {
+        // Fallback to profile role, treating doctor and professional as equivalent
+        const role = data?.role;
+        if (role === 'doctor' || role === 'professional') {
+          setEffectiveRole('professional');
+        } else {
+          setEffectiveRole(role || 'patient');
+        }
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
       setProfile(null);
+      setEffectiveRole(null);
     }
   };
 
@@ -63,6 +82,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           }, 0);
         } else {
           setProfile(null);
+          setEffectiveRole(null);
         }
         
         setLoading(false);
@@ -132,6 +152,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     user,
     session,
     profile,
+    effectiveRole,
     loading,
     signIn,
     signUp,
