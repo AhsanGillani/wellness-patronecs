@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { simpleSupabase } from "@/lib/simple-supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { getGuestFingerprint } from "@/lib/guest-fingerprint";
 import { toast } from "sonner";
 
@@ -9,10 +9,18 @@ export interface Topic {
   slug: string;
   title: string;
   description: string | null;
-  user_id: string | null;
+  author_user_id: string | null;
   guest_name: string | null;
+  guest_fingerprint: string | null;
+  status: 'draft' | 'published' | 'archived';
   created_at: string;
+  updated_at: string;
   question_count?: number;
+  author?: {
+    first_name?: string;
+    last_name?: string;
+    role?: string;
+  };
 }
 
 export interface Question {
@@ -20,31 +28,55 @@ export interface Question {
   topic_id: string;
   title: string;
   body: string;
-  user_id: string | null;
+  author_user_id: string | null;
   guest_name: string | null;
+  guest_fingerprint: string | null;
   is_anonymous: boolean;
+  status: 'draft' | 'published' | 'archived';
   created_at: string;
+  updated_at: string;
   answer_count?: number;
   score?: number;
+  author?: {
+    first_name?: string;
+    last_name?: string;
+    role?: string;
+  };
+  topic?: {
+    id: string;
+    title: string;
+    slug: string;
+  };
 }
 
 export interface Answer {
   id: string;
   question_id: string;
   body: string;
-  user_id: string | null;
+  author_user_id: string | null;
   guest_name: string | null;
-  is_from_professional: boolean;
-  is_verified: boolean;
+  guest_fingerprint: string | null;
+  is_professional: boolean;
+  status: 'draft' | 'published' | 'archived';
   created_at: string;
+  updated_at: string;
   score?: number;
+  author?: {
+    first_name?: string;
+    last_name?: string;
+    role?: string;
+  };
 }
 
 // Query functions
 async function fetchTopics(): Promise<Topic[]> {
-  const { data, error } = await simpleSupabase
+  const { data, error } = await supabase
     .from('community_topics')
-    .select('*')
+    .select(`
+      *,
+      author:profiles!author_user_id(first_name, last_name, role)
+    `)
+    .eq('status', 'published')
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -52,9 +84,12 @@ async function fetchTopics(): Promise<Topic[]> {
 }
 
 async function fetchTopic(slug: string): Promise<Topic | null> {
-  const { data, error } = await simpleSupabase
+  const { data, error } = await supabase
     .from('community_topics')
-    .select('*')
+    .select(`
+      *,
+      author:profiles!author_user_id(first_name, last_name, role)
+    `)
     .eq('slug', slug)
     .eq('status', 'published')
     .maybeSingle();
@@ -64,9 +99,13 @@ async function fetchTopic(slug: string): Promise<Topic | null> {
 }
 
 async function fetchQuestions(topicId?: string): Promise<Question[]> {
-  let query = simpleSupabase
+  let query = supabase
     .from('community_questions')
-    .select('*')
+    .select(`
+      *,
+      author:profiles!author_user_id(first_name, last_name, role),
+      topic:community_topics!topic_id(id, title, slug)
+    `)
     .eq('status', 'published');
 
   if (topicId) {
@@ -80,9 +119,13 @@ async function fetchQuestions(topicId?: string): Promise<Question[]> {
 }
 
 async function fetchQuestion(id: string): Promise<Question | null> {
-  const { data, error } = await simpleSupabase
+  const { data, error } = await supabase
     .from('community_questions')
-    .select('*')
+    .select(`
+      *,
+      author:profiles!author_user_id(first_name, last_name, role),
+      topic:community_topics!topic_id(id, title, slug)
+    `)
     .eq('id', id)
     .eq('status', 'published')
     .maybeSingle();
@@ -92,9 +135,12 @@ async function fetchQuestion(id: string): Promise<Question | null> {
 }
 
 async function fetchAnswers(questionId: string): Promise<Answer[]> {
-  const { data, error } = await simpleSupabase
+  const { data, error } = await supabase
     .from('community_answers')
-    .select('*')
+    .select(`
+      *,
+      author:profiles!author_user_id(first_name, last_name, role)
+    `)
     .eq('question_id', questionId)
     .eq('status', 'published')
     .order('created_at', { ascending: false });
@@ -149,19 +195,20 @@ export function useCreateTopic() {
         title,
         slug,
         description,
+        status: 'published'
       };
 
       // Check if user is authenticated
-      const { data: { user } } = await simpleSupabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        insertData.user_id = user.id;
+        insertData.author_user_id = user.id;
       } else {
         insertData.guest_name = guestName;
         insertData.guest_fingerprint = getGuestFingerprint();
       }
 
-      const { data, error } = await simpleSupabase
+      const { data, error } = await supabase
         .from('community_topics')
         .insert(insertData)
         .select()
@@ -190,19 +237,20 @@ export function useCreateQuestion() {
         title,
         body,
         is_anonymous: isAnonymous,
+        status: 'published'
       };
 
       // Check if user is authenticated
-      const { data: { user } } = await simpleSupabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        insertData.user_id = user.id;
+        insertData.author_user_id = user.id;
       } else {
         insertData.guest_name = guestName;
         insertData.guest_fingerprint = getGuestFingerprint();
       }
 
-      const { data, error } = await simpleSupabase
+      const { data, error } = await supabase
         .from('community_questions')
         .insert(insertData)
         .select()
@@ -229,19 +277,20 @@ export function useCreateAnswer() {
       const insertData: any = {
         question_id: questionId,
         body,
+        status: 'published'
       };
 
       // Check if user is authenticated
-      const { data: { user } } = await simpleSupabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
       
       if (user) {
-        insertData.user_id = user.id;
+        insertData.author_user_id = user.id;
       } else {
         insertData.guest_name = guestName;
         insertData.guest_fingerprint = getGuestFingerprint();
       }
 
-      const { data, error } = await simpleSupabase
+      const { data, error } = await supabase
         .from('community_answers')
         .insert(insertData)
         .select()
