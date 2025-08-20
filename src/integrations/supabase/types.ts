@@ -352,10 +352,14 @@ export type Database = {
           bio: string | null
           created_at: string
           id: string
+          location: string | null
+          phone: string | null
+          price_per_session: number | null
           profession: string | null
           profile_id: string
           slug: string
           specialization: string | null
+          user_id: string | null
           verification: string | null
           years_experience: number | null
         }
@@ -363,10 +367,14 @@ export type Database = {
           bio?: string | null
           created_at?: string
           id?: string
+          location?: string | null
+          phone?: string | null
+          price_per_session?: number | null
           profession?: string | null
           profile_id: string
           slug: string
           specialization?: string | null
+          user_id?: string | null
           verification?: string | null
           years_experience?: number | null
         }
@@ -374,10 +382,14 @@ export type Database = {
           bio?: string | null
           created_at?: string
           id?: string
+          location?: string | null
+          phone?: string | null
+          price_per_session?: number | null
           profession?: string | null
           profile_id?: string
           slug?: string
           specialization?: string | null
+          user_id?: string | null
           verification?: string | null
           years_experience?: number | null
         }
@@ -394,39 +406,57 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          bio: string | null
           created_at: string
           email: string | null
           first_name: string | null
           id: string
           last_name: string | null
+          location: string | null
+          phone: string | null
           role: Database["public"]["Enums"]["user_role"]
           slug: string
+          specialization: string | null
           updated_at: string
           user_id: string | null
+          verification_status: string | null
+          years_experience: number | null
         }
         Insert: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           email?: string | null
           first_name?: string | null
           id?: string
           last_name?: string | null
+          location?: string | null
+          phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           slug: string
+          specialization?: string | null
           updated_at?: string
           user_id?: string | null
+          verification_status?: string | null
+          years_experience?: number | null
         }
         Update: {
           avatar_url?: string | null
+          bio?: string | null
           created_at?: string
           email?: string | null
           first_name?: string | null
           id?: string
           last_name?: string | null
+          location?: string | null
+          phone?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           slug?: string
+          specialization?: string | null
           updated_at?: string
           user_id?: string | null
+          verification_status?: string | null
+          years_experience?: number | null
         }
         Relationships: []
       }
@@ -597,6 +627,30 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          assigned_at: string | null
+          assigned_by: string | null
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          role: Database["public"]["Enums"]["user_role"]
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string | null
+          assigned_by?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       withdrawals: {
         Row: {
           amount_cents: number
@@ -661,7 +715,17 @@ export type Database = {
       }
     }
     Functions: {
-      [_ in never]: never
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["user_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
       appointment_status: "scheduled" | "completed" | "cancelled" | "no_show"
