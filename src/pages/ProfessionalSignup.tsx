@@ -90,6 +90,10 @@ const ProfessionalSignup = () => {
       }
     } else {
       setSuccess('Account created successfully! Please check your email to confirm your account.');
+      // Redirect to login page after successful signup
+      setTimeout(() => {
+        navigate('/auth');
+      }, 2000); // Wait 2 seconds to show success message
     }
 
     setLoading(false);
