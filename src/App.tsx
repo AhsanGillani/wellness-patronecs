@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import Home from "./pages/Home";
 import Community from "./pages/Community";
@@ -10,7 +10,7 @@ import Professional from "./pages/Professional";
 import Services from "./pages/Services";
 import ServiceDetail from "./pages/ServiceDetail";
 import Contact from "./pages/Contact";
-import Auth from "./pages/Auth";
+import Login from "./pages/Login";
 import SignupSelection from "./pages/SignupSelection";
 import PatientSignup from "./pages/PatientSignup";
 import ProfessionalSignup from "./pages/ProfessionalSignup";
@@ -41,8 +41,8 @@ const App = () => {
           <Route path="/profile" element={<Profile />} />
           <Route path="/book/:id" element={<BookAppointment />} />
           <Route path="/contact" element={<Contact />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/login" element={<Auth />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/auth" element={<Navigate to="/login" replace />} />
           <Route path="/signup" element={<SignupSelection />} />
           <Route path="/signup/patient" element={<PatientSignup />} />
           <Route path="/signup/professional" element={<ProfessionalSignup />} />

@@ -1,12 +1,13 @@
 import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import Button from "@/components/ui/button";
-import { events } from "@/lib/eventsData";
+import { useEvents } from "@/hooks/useDatabase";
 import { Link } from "react-router-dom";
 
 const categories = ["All", "Mental Health", "Cardiology", "Nutrition", "Fitness"];
 
 const Events = () => {
+  const { events, loading, error } = useEvents();
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
       <Header />
@@ -34,26 +35,51 @@ const Events = () => {
 
           {/* Events grid */}
           <div className="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.map((ev) => (
-              <Link key={ev.id} to={`/events/${ev.id}`} className="group overflow-hidden rounded-2xl border bg-white focus:outline-none focus:ring-2 focus:ring-violet-300">
-                <div className="h-36 bg-[radial-gradient(60%_60%_at_20%_10%,rgba(124,58,237,0.12),rgba(255,255,255,0))] relative">
-                  {ev.imageUrl && (
-                    <img src={ev.imageUrl} alt={ev.title} className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
-                  )}
-                </div>
-                <div className="p-5">
-                  <div className="text-xs font-medium text-violet-700">{ev.category}</div>
-                  <div className="mt-1 text-base font-semibold text-slate-900">{ev.title}</div>
-                  <div className="mt-2 text-sm text-slate-600">{ev.date} • {ev.time}</div>
-                  <div className="text-sm text-slate-600">{ev.location}</div>
-                  <p className="mt-3 text-sm text-slate-700 line-clamp-2">{ev.description}</p>
-                  <div className="mt-4 flex gap-2">
-                    <Button as="link" to={ev.registrationUrl || "#"} onClick={(e) => e.stopPropagation()}>{typeof ev.ticketPrice === 'number' && ev.ticketPrice > 0 ? `Buy ticket $${ev.ticketPrice}` : "Register"}</Button>
-                    <Button as="link" to={`/events/${ev.id}`} variant="secondary" onClick={(e) => e.stopPropagation()}>Details</Button>
+            {loading ? (
+              <div className="col-span-full text-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mx-auto"></div>
+                <p className="mt-2 text-slate-600">Loading events...</p>
+              </div>
+            ) : error ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-red-600">Error loading events: {error}</p>
+              </div>
+            ) : events?.length === 0 ? (
+              <div className="col-span-full text-center py-12">
+                <p className="text-slate-600">No events found.</p>
+              </div>
+            ) : (
+              events?.map((ev) => (
+                <Link key={ev.id} to={`/events/${ev.id}`} className="group overflow-hidden rounded-2xl border bg-white focus:outline-none focus:ring-2 focus:ring-violet-300">
+                  <div className="h-36 bg-[radial-gradient(60%_60%_at_20%_10%,rgba(124,58,237,0.12),rgba(255,255,255,0))] relative">
+                    {ev.image_url && (
+                      <img src={ev.image_url} alt={ev.title} className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                    )}
                   </div>
-                </div>
-              </Link>
-            ))}
+                  <div className="p-5">
+                    <div className="text-xs font-medium text-violet-700">{ev.type || 'Event'}</div>
+                    <div className="mt-1 text-base font-semibold text-slate-900">{ev.title}</div>
+                    <div className="mt-2 text-sm text-slate-600">
+                      {new Date(ev.date).toLocaleDateString()} • {ev.start_time || 'TBD'}
+                    </div>
+                    <div className="text-sm text-slate-600">{ev.location || 'Location TBD'}</div>
+                    <p className="mt-3 text-sm text-slate-700 line-clamp-2">{ev.summary || ev.details}</p>
+                    <div className="mt-4 flex gap-2">
+                      <Button 
+                        as="link" 
+                        to={ev.registration_url || "#"} 
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {ev.ticket_price_cents && ev.ticket_price_cents > 0 
+                          ? `Buy ticket $${(ev.ticket_price_cents / 100).toFixed(0)}` 
+                          : "Register"}
+                      </Button>
+                      <Button as="link" to={`/events/${ev.id}`} variant="secondary" onClick={(e) => e.stopPropagation()}>Details</Button>
+                    </div>
+                  </div>
+                </Link>
+              ))
+            )}
           </div>
 
           {/* CTA */}

@@ -133,10 +133,10 @@ const Header = () => {
           
           {!user && !loading ? (
             <div className="flex items-center gap-2">
-              <Link to="/auth" className="text-sm font-medium text-slate-700 hover:text-slate-900">
+              <Link to="/login" className="text-sm font-medium text-slate-700 hover:text-slate-900">
                 Login
               </Link>
-              <Button as="link" to="/auth" size="sm">
+              <Button as="link" to="/signup/patient" size="sm">
                 Get Started
               </Button>
             </div>

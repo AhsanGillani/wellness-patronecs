@@ -1,9 +1,10 @@
 import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import Button from "@/components/ui/button";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Stethoscope, Mail, Lock, Phone, MapPin, Calendar, Award, Building, Eye, EyeOff } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const ProfessionalSignup = () => {
   const [formData, setFormData] = useState({
@@ -31,6 +32,18 @@ const ProfessionalSignup = () => {
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const { signUp, user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user) {
+      navigate("/", { replace: true });
+    }
+  }, [user, navigate]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
@@ -44,6 +57,43 @@ const ProfessionalSignup = () => {
 
   const canSubmit = formData.firstName && formData.lastName && formData.email && 
                    formData.password && formData.confirmPassword && formData.profession && formData.agreeToTerms;
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!canSubmit || loading) return;
+
+    if (formData.password !== formData.confirmPassword) {
+      setError("Passwords don't match");
+      return;
+    }
+
+    if (formData.password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+    setSuccess("");
+
+    const { error } = await signUp(formData.email, formData.password, {
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      role: 'professional'
+    });
+
+    if (error) {
+      if (error.message.includes('User already registered')) {
+        setError('An account with this email already exists. Please sign in instead.');
+      } else {
+        setError(error.message || 'An error occurred during signup.');
+      }
+    } else {
+      setSuccess('Account created successfully! Please check your email to confirm your account.');
+    }
+
+    setLoading(false);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
@@ -60,7 +110,19 @@ const ProfessionalSignup = () => {
                   <p className="mt-2 text-slate-600">Join our platform and grow your wellness practice</p>
                 </div>
 
-                <form className="space-y-6">
+                {error && (
+                  <div className="rounded-lg bg-red-50 border-l-4 border-red-400 p-4">
+                    <p className="text-sm text-red-800">{error}</p>
+                  </div>
+                )}
+
+                {success && (
+                  <div className="rounded-lg bg-green-50 border-l-4 border-green-400 p-4">
+                    <p className="text-sm text-green-800">{success}</p>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -339,16 +401,11 @@ const ProfessionalSignup = () => {
                   </div>
 
                   <Button 
-                    disabled={!canSubmit} 
+                    type="submit"
+                    disabled={!canSubmit || loading} 
                     className="w-full py-4 text-base font-semibold bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-lg"
-                    onClick={() => {
-                      if (canSubmit) {
-                        console.log('Creating professional account...', formData);
-                        // Add your account creation logic here
-                      }
-                    }}
                   >
-                    Create Professional Account
+                    {loading ? 'Creating Account...' : 'Create Professional Account'}
                   </Button>
                 </form>
 
