@@ -205,6 +205,142 @@ export type Database = {
         }
         Relationships: []
       }
+      community_answers: {
+        Row: {
+          author_user_id: string | null
+          body: string
+          created_at: string
+          guest_fingerprint: string | null
+          guest_name: string | null
+          id: string
+          is_professional: boolean
+          question_id: string
+          status: Database["public"]["Enums"]["community_status"]
+          updated_at: string
+        }
+        Insert: {
+          author_user_id?: string | null
+          body: string
+          created_at?: string
+          guest_fingerprint?: string | null
+          guest_name?: string | null
+          id?: string
+          is_professional?: boolean
+          question_id: string
+          status?: Database["public"]["Enums"]["community_status"]
+          updated_at?: string
+        }
+        Update: {
+          author_user_id?: string | null
+          body?: string
+          created_at?: string
+          guest_fingerprint?: string | null
+          guest_name?: string | null
+          id?: string
+          is_professional?: boolean
+          question_id?: string
+          status?: Database["public"]["Enums"]["community_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_answers_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "community_questions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_questions: {
+        Row: {
+          author_user_id: string | null
+          body: string
+          created_at: string
+          guest_fingerprint: string | null
+          guest_name: string | null
+          id: string
+          is_anonymous: boolean
+          status: Database["public"]["Enums"]["community_status"]
+          title: string
+          topic_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_user_id?: string | null
+          body: string
+          created_at?: string
+          guest_fingerprint?: string | null
+          guest_name?: string | null
+          id?: string
+          is_anonymous?: boolean
+          status?: Database["public"]["Enums"]["community_status"]
+          title: string
+          topic_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_user_id?: string | null
+          body?: string
+          created_at?: string
+          guest_fingerprint?: string | null
+          guest_name?: string | null
+          id?: string
+          is_anonymous?: boolean
+          status?: Database["public"]["Enums"]["community_status"]
+          title?: string
+          topic_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_questions_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "community_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_topics: {
+        Row: {
+          author_user_id: string | null
+          created_at: string
+          description: string | null
+          guest_fingerprint: string | null
+          guest_name: string | null
+          id: string
+          slug: string
+          status: Database["public"]["Enums"]["community_status"]
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          author_user_id?: string | null
+          created_at?: string
+          description?: string | null
+          guest_fingerprint?: string | null
+          guest_name?: string | null
+          id?: string
+          slug: string
+          status?: Database["public"]["Enums"]["community_status"]
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          author_user_id?: string | null
+          created_at?: string
+          description?: string | null
+          guest_fingerprint?: string | null
+          guest_name?: string | null
+          id?: string
+          slug?: string
+          status?: Database["public"]["Enums"]["community_status"]
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       events: {
         Row: {
           agenda: Json | null
@@ -730,6 +866,7 @@ export type Database = {
     Enums: {
       appointment_status: "scheduled" | "completed" | "cancelled" | "no_show"
       booking_status: "pending" | "confirmed" | "cancelled"
+      community_status: "draft" | "published" | "archived"
       event_status: "pending" | "approved" | "rejected" | "cancelled"
       payment_status: "pending" | "paid" | "refunded" | "failed"
       post_status: "published" | "hidden" | "deleted"
@@ -868,6 +1005,7 @@ export const Constants = {
     Enums: {
       appointment_status: ["scheduled", "completed", "cancelled", "no_show"],
       booking_status: ["pending", "confirmed", "cancelled"],
+      community_status: ["draft", "published", "archived"],
       event_status: ["pending", "approved", "rejected", "cancelled"],
       payment_status: ["pending", "paid", "refunded", "failed"],
       post_status: ["published", "hidden", "deleted"],
