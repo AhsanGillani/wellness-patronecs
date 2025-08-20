@@ -1,10 +1,40 @@
 import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import Button from "@/components/ui/button";
-import { posts } from "@/lib/blogData";
+import { useBlogPosts } from "@/hooks/useDatabase";
 import { Link } from "react-router-dom";
 
 const Blogs = () => {
+  const { posts, loading, error } = useBlogPosts();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
+        <Header />
+        <main className="py-16">
+          <div className="mx-auto max-w-7xl px-4 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mx-auto"></div>
+            <p className="mt-4 text-slate-600">Loading blog posts...</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
+        <Header />
+        <main className="py-16">
+          <div className="mx-auto max-w-7xl px-4 text-center">
+            <p className="text-red-600">Error loading blog posts: {error}</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
       <Header />
