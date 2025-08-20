@@ -10,7 +10,6 @@ import Professional from "./pages/Professional";
 import Services from "./pages/Services";
 import ServiceDetail from "./pages/ServiceDetail";
 import Contact from "./pages/Contact";
-import Login from "./pages/Login";
 import SignupSelection from "./pages/SignupSelection";
 import PatientSignup from "./pages/PatientSignup";
 import ProfessionalSignup from "./pages/ProfessionalSignup";
@@ -21,6 +20,9 @@ import BookAppointment from "./pages/BookAppointment";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import LiveSession from "./pages/LiveSession.tsx";
 import AdminDashboard from "./pages/AdminDashboard";
+
+// Import Login component
+import Login from "./pages/Login";
 
 const App = () => {
   return (
