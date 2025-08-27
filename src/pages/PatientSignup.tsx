@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { User, Mail, Lock, Phone, MapPin, Calendar, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const PatientSignup = () => {
   const [formData, setFormData] = useState({
@@ -32,6 +33,7 @@ const PatientSignup = () => {
 
   const { signUp, user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -71,12 +73,32 @@ const PatientSignup = () => {
     setSuccess("");
 
     try {
-      // First, create the user account
-      const { data: signUpData, error: signUpError } = await signUp(formData.email, formData.password, {
+      const signUpResult = await signUp(formData.email, formData.password, {
         first_name: formData.firstName,
         last_name: formData.lastName,
-        role: 'patient'
+        role: 'patient',
+        phone: formData.phone,
+        date_of_birth: formData.dateOfBirth,
+        location: formData.address && formData.city && formData.state && formData.zipCode 
+          ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`.trim()
+          : null,
+        health_goals: formData.healthGoals
       });
+
+      console.log('Patient signup data being sent:', {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        role: 'patient',
+        phone: formData.phone,
+        date_of_birth: formData.dateOfBirth,
+        location: formData.address && formData.city && formData.state && formData.zipCode 
+          ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`.trim()
+          : null,
+        health_goals: formData.healthGoals
+      });
+      console.log('Patient signup response:', signUpResult);
+      
+      const signUpError = signUpResult.error;
 
       if (signUpError) {
         if (signUpError.message.includes('User already registered')) {
@@ -88,116 +110,16 @@ const PatientSignup = () => {
         return;
       }
 
-      // Wait a moment for the database trigger to create the profile
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Get the current user - try multiple approaches
-      let user = null;
+      // Account created successfully - the database trigger will create the profile
+      toast({
+        title: "Account Created Successfully!",
+        description: "Please check your email and verify your account to continue.",
+      });
       
-      // Try to get user from signup response first
-      if (signUpData?.user) {
-        user = signUpData.user;
-      } else {
-        // Fallback to getCurrentUser
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        user = currentUser;
-      }
-
-      if (!user) {
-        setError('Account created but unable to create profile. Please try logging in.');
-        setLoading(false);
-        return;
-      }
-      
-      if (user) {
-        // First check if profile exists
-        const { data: existingProfile, error: profileCheckError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('user_id', user.id)
-          .single();
-        
-        let profileId = existingProfile?.id;
-        
-        // If profile doesn't exist (either no data or error), create it manually
-        if (!existingProfile) {
-          try {
-            const { data: newProfile, error: createProfileError } = await supabase
-              .from('profiles')
-              .insert({
-                user_id: user.id,
-                email: formData.email,
-                first_name: formData.firstName,
-                last_name: formData.lastName,
-                slug: `${formData.firstName.toLowerCase()}-${formData.lastName.toLowerCase()}-${Date.now()}`,
-                role: 'patient',
-                phone: formData.phone || null,
-                date_of_birth: formData.dateOfBirth || null,
-                location: formData.address && formData.city && formData.state && formData.zipCode 
-                  ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`.trim()
-                  : null,
-                health_goals: formData.healthGoals || null
-              })
-              .select()
-              .single();
-            
-            if (createProfileError) {
-              // Try a simpler insert without the complex fields
-              const { data: simpleProfile, error: simpleError } = await supabase
-                .from('profiles')
-                .insert({
-                  user_id: user.id,
-                  email: formData.email,
-                  first_name: formData.firstName,
-                  last_name: formData.lastName,
-                  slug: `${formData.firstName.toLowerCase()}-${formData.lastName.toLowerCase()}-${Date.now()}`,
-                  role: 'patient'
-                })
-                .select()
-                .single();
-             
-              if (simpleError) {
-                // Don't fail the signup if simple profile creation fails
-              } else {
-                profileId = simpleProfile.id;
-              }
-            } else {
-              profileId = newProfile.id;
-            }
-          } catch (insertError) {
-            // Don't fail the signup if profile creation fails
-          }
-        } else if (existingProfile) {
-          try {
-            // Update the existing profile with additional information
-            const { error: profileError } = await supabase
-              .from('profiles')
-              .update({
-                phone: formData.phone || null,
-                date_of_birth: formData.dateOfBirth || null,
-                location: formData.address && formData.city && formData.state && formData.zipCode 
-                  ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`.trim()
-                  : null,
-                health_goals: formData.healthGoals || null,
-                updated_at: new Date().toISOString()
-              })
-              .eq('user_id', user.id);
-
-            if (profileError) {
-              // Don't fail the signup if profile update fails
-            }
-          } catch (updateError) {
-            // Don't fail the signup if profile update fails
-          }
-        }
-      }
-
-      setSuccess('Account created successfully! Please check your email to confirm your account.');
-      
-      // Redirect to login page after 3 seconds
+      // Redirect to login page after 2 seconds
       setTimeout(() => {
         navigate('/login');
-      }, 3000);
+      }, 2000);
 
     } catch (error: unknown) {
       console.error('Signup error:', error);
