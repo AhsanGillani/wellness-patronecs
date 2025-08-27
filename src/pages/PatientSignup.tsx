@@ -85,6 +85,17 @@ const PatientSignup = () => {
         health_goals: formData.healthGoals
       });
 
+      console.log('Patient signup data being sent:', {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        role: 'patient',
+        phone: formData.phone,
+        date_of_birth: formData.dateOfBirth,
+        location: formData.address && formData.city && formData.state && formData.zipCode 
+          ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`.trim()
+          : null,
+        health_goals: formData.healthGoals
+      });
       console.log('Patient signup response:', signUpResult);
       
       const signUpError = signUpResult.error;
