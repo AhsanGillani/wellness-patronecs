@@ -5,11 +5,13 @@ import { Video, Mic, MicOff, VideoOff, PhoneOff, Users, Send, Paperclip, Smile, 
 import { addRating } from "@/lib/ratings";
 import { addFeedback } from "@/lib/feedback";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const LiveSession = () => {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
@@ -36,9 +38,9 @@ const LiveSession = () => {
   const participants = [
     {
       id: "doctor",
-      name: "Dr. Sarah Wilson",
-      role: "Doctor",
-      avatar: doctorImageUrl,
+      name: profile ? `Dr. ${profile.first_name} ${profile.last_name}` : "Dr. Sarah Wilson",
+      role: profile?.specialization || profile?.profession || "Doctor",
+      avatar: profile?.avatar_url || doctorImageUrl,
       online: true
     },
     {
@@ -110,7 +112,7 @@ const LiveSession = () => {
       addFeedback(profId, {
         id: `fb_${Date.now()}`,
         appointmentId: apptId,
-        patientName: "You", // placeholder until wired to auth
+        patientName: profile ? `${profile.first_name} ${profile.last_name}` : "You", // Use profile name if available
         createdAt: new Date().toISOString(),
         rating: feedback.rating,
         feedbackText: feedback.feedbackText,

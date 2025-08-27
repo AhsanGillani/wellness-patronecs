@@ -34,8 +34,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [profile, setProfile] = useState<any | null>(null);
   const [effectiveRole, setEffectiveRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isSigningUp, setIsSigningUp] = useState(false);
 
   const fetchProfile = async (userId: string) => {
+    // Don't fetch profile if we're in the middle of signup
+    if (isSigningUp) {
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('profiles')
@@ -43,17 +49,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         .eq('user_id', userId)
         .single();
       
-      if (error) throw error;
+      if (error) {
+        // Handle the case where profile doesn't exist yet (expected for new users)
+        if (error.code === 'PGRST116' || error.code === '406') {
+          setProfile(null);
+          setEffectiveRole('patient');
+          return;
+        }
+        throw error;
+      }
+      
       setProfile(data);
       
       // Get effective role using database function
-      const { data: roleData, error: roleError } = await supabase
-        .rpc('get_current_user_role');
-      
-      if (!roleError && roleData) {
-        setEffectiveRole(roleData);
-      } else {
-        // Fallback to profile role, treating doctor and professional as equivalent
+      try {
+        const { data: roleData, error: roleError } = await supabase
+          .rpc('get_current_user_role');
+        
+        if (!roleError && roleData) {
+          setEffectiveRole(roleData);
+        } else {
+          // Fallback to profile role, treating doctor and professional as equivalent
+          const role = data?.role;
+          if (role === 'doctor' || role === 'professional') {
+            setEffectiveRole('professional');
+          } else {
+            setEffectiveRole(role || 'patient');
+          }
+        }
+      } catch (roleError) {
         const role = data?.role;
         if (role === 'doctor' || role === 'professional') {
           setEffectiveRole('professional');
@@ -62,7 +86,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         }
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
       setProfile(null);
       setEffectiveRole(null);
     }
@@ -75,12 +98,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Defer profile fetching with setTimeout to prevent deadlock
-        if (session?.user) {
+        // Only fetch profile if we're not signing up
+        if (session?.user && !isSigningUp) {
           setTimeout(() => {
             fetchProfile(session.user.id);
-          }, 0);
-        } else {
+          }, 1000); // Increased delay to ensure signup completes
+        } else if (!session?.user) {
           setProfile(null);
           setEffectiveRole(null);
         }
@@ -94,17 +117,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setSession(session);
       setUser(session?.user ?? null);
       
-      if (session?.user) {
+      if (session?.user && !isSigningUp) {
         setTimeout(() => {
           fetchProfile(session.user.id);
-        }, 0);
+        }, 1000);
       }
       
       setLoading(false);
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [isSigningUp]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -115,9 +138,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const signUp = async (email: string, password: string, userData?: any) => {
+    setIsSigningUp(true);
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -125,7 +149,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         data: userData || {}
       }
     });
-    return { error };
+
+    // Keep the flag true for a bit longer to prevent profile fetching
+    setTimeout(() => {
+      setIsSigningUp(false);
+    }, 5000);
+
+    return { data, error };
   };
 
   const signOut = async () => {
