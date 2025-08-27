@@ -3,6 +3,7 @@ import { useLocation, Link, useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
 import Button from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/hooks/useMarketplace";
 import avatarImg from "@/assets/avatar-1.jpg";
 
 const Header = () => {
@@ -10,15 +11,13 @@ const Header = () => {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement | null>(null);
-  const [notifications, setNotifications] = useState([
-    { id: 1, message: "New patient registration: Maria Garcia", time: "2 min ago", type: "info", read: false },
-    { id: 2, message: "Appointment reminder: Sarah Johnson at 9:00 AM", time: "15 min ago", type: "reminder", read: false },
-    { id: 3, message: "Lab results available for Michael Chen", time: "1 hour ago", type: "results", read: false },
-    { id: 4, message: "Patient feedback received", time: "2 hours ago", type: "feedback", read: false }
-  ]);
+  const [activeNotifId, setActiveNotifId] = useState<string | null>(null);
 
   const { user, profile, signOut, loading } = useAuth();
+  const { data: notifications = [], isLoading: notificationsLoading } = useNotifications();
   const navigate = useNavigate();
+
+  const allRead = notifications.every(n => n.read_at);
 
   useEffect(() => {
     const onDocClick = (e: MouseEvent) => {
@@ -60,6 +59,23 @@ const Header = () => {
     return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
   };
 
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours} hour${diffInHours > 1 ? 's' : ''} ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`;
+    
+    return date.toLocaleDateString();
+  };
+
   return (
     <header className="sticky top-0 z-10 bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 border-b">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -68,6 +84,10 @@ const Header = () => {
           <span className="font-semibold text-slate-900">Wellness</span>
         </Link>
         <nav className="hidden md:flex items-center gap-2 text-sm text-slate-600">
+          <Link to="/" className={(isActive("/") ? "text-slate-900 font-medium " : "") + "hover:text-slate-900 px-3 py-2 rounded-md hover:bg-slate-50 transition relative"}>
+            Home
+            {isActive("/") && <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 rounded bg-violet-600" />}
+          </Link>
           <Link to="/community" className={(isActive("/community") ? "text-slate-900 font-medium " : "") + "hover:text-slate-900 px-3 py-2 rounded-md hover:bg-slate-50 transition relative"}>
             Community
             {isActive("/community") && <span className="absolute left-3 right-3 -bottom-0.5 h-0.5 rounded bg-violet-600" />}
@@ -102,29 +122,105 @@ const Header = () => {
                 onClick={() => setIsNotifOpen(v => !v)}
               >
                 <Bell className="w-5 h-5" />
-                {notifications.some(n => !n.read) && <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500" />}
+                {notifications.some(n => !n.read_at) && <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500" />}
               </button>
               {isNotifOpen && (
                 <div className="absolute right-0 mt-2 w-80 rounded-md border bg-white shadow-md p-0 overflow-hidden">
                   <div className="flex items-center justify-between px-4 py-2 border-b">
-                    <span className="text-sm font-medium text-slate-900">Notifications</span>
-                    <button
-                      className="text-xs text-violet-600 hover:text-violet-700"
-                      onClick={() => setNotifications(prev => prev.map(n => ({ ...n, read: true })))}
-                    >
-                      Mark all read
+                    <span className="text-sm font-medium text-slate-900">{activeNotifId === null ? 'Notifications' : 'Notification'}</span>
+                    <div className="flex items-center gap-2">
+                      {activeNotifId === null ? (
+                        <span className="text-xs text-slate-400">
+                          {allRead ? 'All read' : `${notifications.filter(n => !n.read_at).length} unread`}
+                        </span>
+                      ) : (
+                        <button
+                          className="text-xs text-slate-600 hover:text-slate-800"
+                          onClick={() => setActiveNotifId(null)}
+                        >
+                          Back
                     </button>
+                      )}
+                    </div>
                   </div>
                   <div className="max-h-80 overflow-auto">
-                    {notifications.length === 0 && (
-                      <div className="px-4 py-6 text-center text-sm text-slate-500">No notifications</div>
-                    )}
-                    {notifications.map(n => (
-                      <div key={n.id} className={`px-4 py-3 border-b last:border-0 ${n.read ? 'bg-white' : 'bg-violet-50/50'}`}>
-                        <div className="text-sm text-slate-800">{n.message}</div>
-                        <div className="text-xs text-slate-500">{n.time}</div>
+                    {notificationsLoading ? (
+                      <div className="px-4 py-6 text-center text-sm text-slate-500">Loading...</div>
+                    ) : notifications.length === 0 ? (
+                      <div className="px-4 py-8 text-center">
+                        <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-3">
+                          <Bell className="w-6 h-6 text-slate-400" />
+                        </div>
+                        <div className="text-sm font-medium text-slate-900 mb-1">No updates for now</div>
+                        <div className="text-xs text-slate-500 mb-3">You're all caught up!</div>
+                        <Link
+                          to="/notifications"
+                          className="inline-block text-sm text-violet-600 hover:text-violet-700 font-medium"
+                          onClick={() => setIsNotifOpen(false)}
+                        >
+                          View notifications page
+                        </Link>
                       </div>
-                    ))}
+                    ) : activeNotifId === null ? (
+                      <>
+                        {notifications.map(n => (
+                        <div
+                          key={n.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => {
+                            setActiveNotifId(n.id);
+                            }}
+                            onKeyDown={(e) => { if (e.key === 'Enter') { setActiveNotifId(n.id); }}}
+                            className={`px-4 py-3 border-b last:border-0 cursor-pointer hover:bg-slate-50 ${n.read_at ? 'bg-white' : 'bg-violet-50/50'}`}
+                          >
+                            <div className="text-sm text-slate-800">{n.title}</div>
+                            {n.body && <div className="text-xs text-slate-600 mt-1 line-clamp-2">{n.body}</div>}
+                            <div className="text-xs text-slate-500 mt-1">{formatTimeAgo(n.created_at)}</div>
+                          </div>
+                        ))}
+                        {notifications.length > 0 && (
+                          <div className="px-4 py-3 border-t bg-slate-50">
+                            <Link
+                              to="/notifications"
+                              className="block text-center text-sm text-violet-600 hover:text-violet-700 font-medium"
+                              onClick={() => setIsNotifOpen(false)}
+                            >
+                              View all notifications
+                            </Link>
+                      </div>
+                        )}
+                      </>
+                    ) : (
+                      (() => {
+                        const n = notifications.find(x => x.id === activeNotifId);
+                        if (!n) return null;
+                        return (
+                          <div className="px-4 py-4">
+                            <div className="text-sm font-medium text-slate-900">{n.title}</div>
+                            {n.body && <div className="mt-2 text-sm text-slate-700">{n.body}</div>}
+                            <div className="mt-2 text-xs text-slate-500">{formatTimeAgo(n.created_at)}</div>
+                            <div className="mt-3 flex items-center gap-2">
+                              <button
+                                className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                                onClick={() => setActiveNotifId(null)}
+                              >
+                                Back
+                              </button>
+                              {n.link_url && (
+                                <Link
+                                  to={n.link_url}
+                                  className="rounded-full bg-violet-600 px-3 py-1 text-xs text-white hover:bg-violet-700"
+                                  onClick={() => setIsNotifOpen(false)}
+                                >
+                                  View
+                                </Link>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()
+                    )}
                   </div>
                 </div>
               )}
@@ -159,6 +255,7 @@ const Header = () => {
                 <div className="absolute right-0 mt-2 w-48 rounded-md border bg-white shadow-md p-1">
                   {/* On mobile, include main nav links here */}
                   <div className="block md:hidden">
+                    <Link to="/" className={(isActive("/") ? "font-medium " : "") + "block rounded-sm px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"}>Home</Link>
                     <Link to="/community" className={(isActive("/community") ? "font-medium " : "") + "block rounded-sm px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"}>Community</Link>
                     <Link to="/services" className={(isActive("/services") ? "font-medium " : "") + "block rounded-sm px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"}>Services</Link>
                     <Link to="/professionals" className={(isActive("/professionals") ? "font-medium " : "") + "block rounded-sm px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"}>Find Professionals</Link>
