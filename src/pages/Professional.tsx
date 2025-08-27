@@ -99,12 +99,12 @@ const ServicesTabs = ({ services = [], profId, prof, feedback, servicesLoading, 
               {services.map((s) => {
                 console.log('Service card - service:', s);
                 console.log('Service card - s.id:', s.id, 'type:', typeof s.id);
-                console.log('Service card - s.slug:', s.slug, 'type:', typeof s.slug);
+                console.log('Service card - s.slug:', (s as any).slug, 'type:', typeof (s as any).slug);
                 console.log('Service card - s.name:', s.name);
                 console.log('Service card - prof.slug:', prof.slug, 'type:', typeof prof.slug);
                 
                 // Generate a slug if missing
-                const serviceSlug = s.slug || s.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || s.id;
+                const serviceSlug = (s as any).slug || s.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') || s.id;
                 
                 console.log('Service card - generated serviceSlug:', serviceSlug);
                 console.log('Service card - final URL:', `/services/${prof.slug}/${serviceSlug}`);

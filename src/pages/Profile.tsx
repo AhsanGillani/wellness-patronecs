@@ -135,6 +135,7 @@ const PatientTabs = () => {
 };
 
 const Profile = () => {
+	const { profile } = useAuth();
 	const [activeSection, setActiveSection] = useState<"overview" | "bookings" | "account">("overview");
 	const [profileImageUrl, setProfileImageUrl] = useState<string>(avatar);
 	const [firstName, setFirstName] = useState("John");
