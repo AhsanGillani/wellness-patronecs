@@ -670,7 +670,7 @@ export type Database = {
           updated_at: string
           user_id: string | null
           verification_status: string | null
-          years_experience: number | null
+          years_experience: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -694,7 +694,7 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           verification_status?: string | null
-          years_experience?: number | null
+          years_experience?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -718,7 +718,7 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           verification_status?: string | null
-          years_experience?: number | null
+          years_experience?: string | null
         }
         Relationships: []
       }
