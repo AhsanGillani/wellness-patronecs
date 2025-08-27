@@ -81,7 +81,7 @@ const ProfessionalSignup = () => {
 
     try {
       // First, create the user account with all form data
-      const { error: signUpError } = await signUp(formData.email, formData.password, {
+      const signupData = {
         first_name: formData.firstName,
         last_name: formData.lastName,
         role: 'professional',
@@ -96,7 +96,11 @@ const ProfessionalSignup = () => {
         practice_address: formData.practiceAddress,
         license_number: formData.licenseNumber,
         education_certifications: formData.education
-      });
+      };
+      
+      console.log('Professional signup data being sent:', signupData);
+      
+      const { error: signUpError } = await signUp(formData.email, formData.password, signupData);
 
       if (signUpError) {
         if (signUpError.message.includes('User already registered')) {
