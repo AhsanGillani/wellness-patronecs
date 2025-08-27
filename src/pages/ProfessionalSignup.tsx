@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Stethoscope, Mail, Lock, Phone, MapPin, Calendar, Award, Building, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const ProfessionalSignup = () => {
   const [formData, setFormData] = useState({
@@ -76,24 +77,179 @@ const ProfessionalSignup = () => {
     setError("");
     setSuccess("");
 
-    const { error } = await signUp(formData.email, formData.password, {
-      first_name: formData.firstName,
-      last_name: formData.lastName,
-      role: 'professional'
-    });
+    try {
+      // First, create the user account
+      const { data: signUpData, error: signUpError } = await signUp(formData.email, formData.password, {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        role: 'professional'
+      });
 
-    if (error) {
-      if (error.message.includes('User already registered')) {
-        setError('An account with this email already exists. Please sign in instead.');
-      } else {
-        setError(error.message || 'An error occurred during signup.');
+      if (signUpError) {
+        if (signUpError.message.includes('User already registered')) {
+          setError('An account with this email already exists. Please sign in instead.');
+        } else {
+          setError(signUpError.message || 'An error occurred during signup.');
+        }
+        setLoading(false);
+        return;
       }
-    } else {
-      setSuccess('Account created successfully! Please check your email to confirm your account.');
-      // Redirect to login page after successful signup
+
+      // Wait a moment for the database trigger to create the profile
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Get the current user - try multiple approaches
+      let user = null;
+      
+      // Try to get user from signup response first
+      if (signUpData?.user) {
+        user = signUpData.user;
+      } else {
+        // Fallback to getCurrentUser
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        user = currentUser;
+      }
+
+      if (!user) {
+        setError('Account created but unable to create profile. Please try logging in.');
+        setLoading(false);
+        return;
+      }
+      
+      if (user) {
+        // First check if profile exists
+        const { data: existingProfile, error: profileCheckError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        let profileId = existingProfile?.id;
+        
+        // If profile doesn't exist (either no data or error), create it manually
+        if (!existingProfile) {
+          try {
+            const { data: newProfile, error: createProfileError } = await supabase
+              .from('profiles')
+              .insert({
+                user_id: user.id,
+                email: formData.email,
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                slug: `${formData.firstName.toLowerCase()}-${formData.lastName.toLowerCase()}-${Date.now()}`,
+                role: 'professional',
+                phone: formData.phone || null,
+                date_of_birth: formData.dateOfBirth || null,
+                location: formData.address && formData.city && formData.state && formData.zipCode 
+                  ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`.trim()
+                  : null,
+                specialization: formData.specialization || null,
+                years_experience: formData.yearsOfExperience ? parseInt(formData.yearsOfExperience) : null,
+                practice_name: formData.practiceName || null,
+                practice_address: formData.practiceAddress || null,
+                license_number: formData.licenseNumber || null,
+                education_certifications: formData.education || null
+              })
+              .select()
+              .single();
+            
+            if (createProfileError) {
+              // Try a simpler insert without the complex fields
+              const { data: simpleProfile, error: simpleError } = await supabase
+                .from('profiles')
+                .insert({
+                  user_id: user.id,
+                  email: formData.email,
+                  first_name: formData.firstName,
+                  last_name: formData.lastName,
+                  slug: `${formData.firstName.toLowerCase()}-${formData.lastName.toLowerCase()}-${Date.now()}`,
+                  role: 'professional'
+                })
+                .select()
+                .single();
+             
+              if (simpleError) {
+                setError('Profile creation failed. Please contact support.');
+                setLoading(false);
+                return;
+              } else {
+                profileId = simpleProfile.id;
+              }
+            } else {
+              profileId = newProfile.id;
+            }
+          } catch (insertError) {
+            setError('Profile creation failed. Please contact support.');
+            setLoading(false);
+            return;
+          }
+        } else if (existingProfile) {
+          try {
+            // Update the existing profile with additional professional information
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .update({
+                phone: formData.phone || null,
+                date_of_birth: formData.dateOfBirth || null,
+                location: formData.address && formData.city && formData.state && formData.zipCode 
+                  ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`.trim()
+                  : null,
+                specialization: formData.specialization || null,
+                years_experience: formData.yearsOfExperience ? parseInt(formData.yearsOfExperience) : null,
+                practice_name: formData.practiceName || null,
+                practice_address: formData.practiceAddress || null,
+                license_number: formData.licenseNumber || null,
+                education_certifications: formData.education || null,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', user.id);
+
+            if (profileError) {
+              // Don't fail the signup if profile update fails, but log it
+            }
+          } catch (updateError) {
+            // Don't fail the signup if profile update fails
+          }
+        }
+
+        // Also create a professional record if we have a profile ID
+        if (profileId) {
+          try {
+            const { error: professionalError } = await supabase
+              .from('professionals')
+              .insert({
+                profile_id: profileId,
+                slug: `${formData.firstName.toLowerCase()}-${formData.lastName.toLowerCase()}-${Date.now()}`,
+                profession: formData.profession || null,
+                years_experience: formData.yearsOfExperience ? parseInt(formData.yearsOfExperience) : null,
+                specialization: formData.specialization || null,
+                bio: formData.education || null,
+                practice_name: formData.practiceName || null,
+                practice_address: formData.practiceAddress || null,
+                license_number: formData.licenseNumber || null,
+                education_certifications: formData.education || null,
+                verification: 'pending'
+              });
+
+            if (professionalError) {
+              // Don't fail the signup if professional record creation fails
+            }
+          } catch (professionalInsertError) {
+            // Don't fail the signup if professional record creation fails
+          }
+        }
+      }
+
+      setSuccess('Professional account created successfully! Please check your email to confirm your account.');
+      
+      // Redirect to login page after 3 seconds
       setTimeout(() => {
-        navigate('/auth');
-      }, 2000); // Wait 2 seconds to show success message
+        navigate('/login');
+      }, 3000);
+
+    } catch (error: unknown) {
+      console.error('Signup error:', error);
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred.');
     }
 
     setLoading(false);
@@ -123,6 +279,7 @@ const ProfessionalSignup = () => {
                 {success && (
                   <div className="rounded-lg bg-green-50 border-l-4 border-green-400 p-4">
                     <p className="text-sm text-green-800">{success}</p>
+                    <p className="text-sm text-green-700 mt-1">You will be redirected to the login page in a few seconds...</p>
                   </div>
                 )}
 

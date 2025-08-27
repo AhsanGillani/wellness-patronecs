@@ -2,6 +2,7 @@ import Header from "@/components/site/Header";
 import { getFeedback } from "@/lib/feedback";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   Calendar, 
   Users, 
@@ -60,6 +61,7 @@ import { parseISO, isToday, isThisWeek, isThisMonth, isWithinInterval, parse, co
 
 const DoctorDashboard = () => {
   const navigate = useNavigate();
+  const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
   const [searchQuery, setSearchQuery] = useState("");
   const [appointmentView, setAppointmentView] = useState("requests");
@@ -2823,8 +2825,12 @@ const DoctorDashboard = () => {
                 <span className="text-blue-600 text-xl font-semibold">Dr.</span>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900">Dr. Sarah Wilson</h3>
-                <p className="text-sm text-gray-500">Cardiologist</p>
+                <h3 className="font-semibold text-gray-900">
+                  {profile ? `Dr. ${profile.first_name} ${profile.last_name}` : 'Loading...'}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {profile?.specialization || profile?.profession || 'Professional'}
+                </p>
               </div>
             </div>
 

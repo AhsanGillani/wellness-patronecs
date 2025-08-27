@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
+import ScrollToTop from "./components/site/ScrollToTop";
 import Home from "./pages/Home";
 import Community from "./pages/Community";
 import CommunityQuestion from "./pages/CommunityQuestion";
@@ -20,6 +21,8 @@ import BookAppointment from "./pages/BookAppointment";
 import DoctorDashboard from "./pages/DoctorDashboard";
 import LiveSession from "./pages/LiveSession.tsx";
 import AdminDashboard from "./pages/AdminDashboard";
+import Notifications from "./pages/Notifications";
+import NotificationDetail from "./pages/NotificationDetail";
 
 // Import Login component
 import Login from "./pages/Login";
@@ -28,19 +31,21 @@ const App = () => {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <ScrollToTop />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/community" element={<Community />} />
           <Route path="/community/q/:id" element={<CommunityQuestion />} />
           <Route path="/blogs" element={<Blogs />} />
-          <Route path="/blogs/:id" element={<BlogDetail />} />
+          <Route path="/blogs/:slug" element={<BlogDetail />} />
           <Route path="/professionals" element={<Professionals />} />
-          <Route path="/professional/:id" element={<Professional />} />
+          <Route path="/professional/:slug" element={<Professional />} />
           <Route path="/services" element={<Services />} />
-          <Route path="/services/:providerId/:serviceId" element={<ServiceDetail />} />
+          <Route path="/services/:providerSlug/:serviceSlug" element={<ServiceDetail />} />
           <Route path="/events" element={<Events />} />
           <Route path="/events/:id" element={<EventDetail />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/book/:providerSlug/:serviceSlug" element={<BookAppointment />} />
           <Route path="/book/:id" element={<BookAppointment />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/login" element={<Login />} />
@@ -50,6 +55,8 @@ const App = () => {
           <Route path="/signup/professional" element={<ProfessionalSignup />} />
           <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/notifications" element={<Notifications />} />
+          <Route path="/notifications/:id" element={<NotificationDetail />} />
           <Route path="/live-session/:id" element={<LiveSession />} />
           <Route path="*" element={<Home />} />
         </Routes>
