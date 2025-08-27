@@ -104,6 +104,45 @@ export type Database = {
         }
         Relationships: []
       }
+      availability_wishlist: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: string
+          patient_profile_id: string
+          service_id: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          patient_profile_id: string
+          service_id: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: string
+          patient_profile_id?: string
+          service_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availability_wishlist_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "availability_wishlist_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "services"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blog_posts: {
         Row: {
           author_user_id: string | null
@@ -214,6 +253,7 @@ export type Database = {
           guest_name: string | null
           id: string
           is_professional: boolean
+          parent_id: string | null
           question_id: string
           status: Database["public"]["Enums"]["community_status"]
           updated_at: string
@@ -226,6 +266,7 @@ export type Database = {
           guest_name?: string | null
           id?: string
           is_professional?: boolean
+          parent_id?: string | null
           question_id: string
           status?: Database["public"]["Enums"]["community_status"]
           updated_at?: string
@@ -238,11 +279,19 @@ export type Database = {
           guest_name?: string | null
           id?: string
           is_professional?: boolean
+          parent_id?: string | null
           question_id?: string
           status?: Database["public"]["Enums"]["community_status"]
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "community_answers_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "community_answers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "community_answers_question_id_fkey"
             columns: ["question_id"]
@@ -310,6 +359,7 @@ export type Database = {
           guest_fingerprint: string | null
           guest_name: string | null
           id: string
+          image_base64: string | null
           slug: string
           status: Database["public"]["Enums"]["community_status"]
           title: string
@@ -322,6 +372,7 @@ export type Database = {
           guest_fingerprint?: string | null
           guest_name?: string | null
           id?: string
+          image_base64?: string | null
           slug: string
           status?: Database["public"]["Enums"]["community_status"]
           title: string
@@ -334,6 +385,7 @@ export type Database = {
           guest_fingerprint?: string | null
           guest_name?: string | null
           id?: string
+          image_base64?: string | null
           slug?: string
           status?: Database["public"]["Enums"]["community_status"]
           title?: string
@@ -483,13 +535,61 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          data: Json | null
+          id: string
+          link_url: string | null
+          read_at: string | null
+          recipient_profile_id: string | null
+          recipient_role: Database["public"]["Enums"]["user_role"] | null
+          title: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          data?: Json | null
+          id?: string
+          link_url?: string | null
+          read_at?: string | null
+          recipient_profile_id?: string | null
+          recipient_role?: Database["public"]["Enums"]["user_role"] | null
+          title: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          data?: Json | null
+          id?: string
+          link_url?: string | null
+          read_at?: string | null
+          recipient_profile_id?: string | null
+          recipient_role?: Database["public"]["Enums"]["user_role"] | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_recipient_profile_id_fkey"
+            columns: ["recipient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       professionals: {
         Row: {
           bio: string | null
           created_at: string
+          education_certifications: string | null
           id: string
+          license_number: string | null
           location: string | null
           phone: string | null
+          practice_address: string | null
+          practice_name: string | null
           price_per_session: number | null
           profession: string | null
           profile_id: string
@@ -502,9 +602,13 @@ export type Database = {
         Insert: {
           bio?: string | null
           created_at?: string
+          education_certifications?: string | null
           id?: string
+          license_number?: string | null
           location?: string | null
           phone?: string | null
+          practice_address?: string | null
+          practice_name?: string | null
           price_per_session?: number | null
           profession?: string | null
           profile_id: string
@@ -517,9 +621,13 @@ export type Database = {
         Update: {
           bio?: string | null
           created_at?: string
+          education_certifications?: string | null
           id?: string
+          license_number?: string | null
           location?: string | null
           phone?: string | null
+          practice_address?: string | null
+          practice_name?: string | null
           price_per_session?: number | null
           profession?: string | null
           profile_id?: string
@@ -544,12 +652,18 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           created_at: string
+          date_of_birth: string | null
+          education_certifications: string | null
           email: string | null
           first_name: string | null
+          health_goals: string | null
           id: string
           last_name: string | null
+          license_number: string | null
           location: string | null
           phone: string | null
+          practice_address: string | null
+          practice_name: string | null
           role: Database["public"]["Enums"]["user_role"]
           slug: string
           specialization: string | null
@@ -562,12 +676,18 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          education_certifications?: string | null
           email?: string | null
           first_name?: string | null
+          health_goals?: string | null
           id?: string
           last_name?: string | null
+          license_number?: string | null
           location?: string | null
           phone?: string | null
+          practice_address?: string | null
+          practice_name?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           slug: string
           specialization?: string | null
@@ -580,12 +700,18 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          education_certifications?: string | null
           email?: string | null
           first_name?: string | null
+          health_goals?: string | null
           id?: string
           last_name?: string | null
+          license_number?: string | null
           location?: string | null
           phone?: string | null
+          practice_address?: string | null
+          practice_name?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           slug?: string
           specialization?: string | null

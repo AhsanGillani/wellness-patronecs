@@ -73,11 +73,17 @@ const PatientSignup = () => {
     setSuccess("");
 
     try {
-      // First, create the user account
+      // First, create the user account with all form data
       const { error: signUpError } = await signUp(formData.email, formData.password, {
         first_name: formData.firstName,
         last_name: formData.lastName,
-        role: 'patient'
+        role: 'patient',
+        phone: formData.phone,
+        date_of_birth: formData.dateOfBirth,
+        location: formData.address && formData.city && formData.state && formData.zipCode 
+          ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`.trim()
+          : null,
+        health_goals: formData.healthGoals
       });
 
       if (signUpError) {
