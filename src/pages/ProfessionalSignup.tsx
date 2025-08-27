@@ -80,11 +80,22 @@ const ProfessionalSignup = () => {
     setSuccess("");
 
     try {
-      // First, create the user account
+      // First, create the user account with all form data
       const { error: signUpError } = await signUp(formData.email, formData.password, {
         first_name: formData.firstName,
         last_name: formData.lastName,
-        role: 'professional'
+        role: 'professional',
+        phone: formData.phone,
+        date_of_birth: formData.dateOfBirth,
+        location: formData.address && formData.city && formData.state && formData.zipCode 
+          ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`.trim()
+          : null,
+        specialization: formData.specialization,
+        years_experience: formData.yearsOfExperience,
+        practice_name: formData.practiceName,
+        practice_address: formData.practiceAddress,
+        license_number: formData.licenseNumber,
+        education_certifications: formData.education
       });
 
       if (signUpError) {
