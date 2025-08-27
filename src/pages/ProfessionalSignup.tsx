@@ -100,9 +100,14 @@ const ProfessionalSignup = () => {
       
       console.log('Professional signup data being sent:', signupData);
       
-      const { error: signUpError } = await signUp(formData.email, formData.password, signupData);
+      const signUpResult = await signUp(formData.email, formData.password, signupData);
+
+      console.log('Signup response:', signUpResult);
+      
+      const signUpError = signUpResult.error;
 
       if (signUpError) {
+        console.error('Signup failed:', signUpError);
         if (signUpError.message.includes('User already registered')) {
           setError('An account with this email already exists. Please sign in instead.');
         } else {
@@ -111,6 +116,8 @@ const ProfessionalSignup = () => {
         setLoading(false);
         return;
       }
+
+      console.log('Signup successful - proceeding with success flow');
 
       // Account created successfully - the database trigger will create the profile when user confirms email
       toast({
