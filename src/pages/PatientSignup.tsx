@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { User, Mail, Lock, Phone, MapPin, Calendar, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const PatientSignup = () => {
   const [formData, setFormData] = useState({
@@ -32,6 +33,7 @@ const PatientSignup = () => {
 
   const { signUp, user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -192,12 +194,15 @@ const PatientSignup = () => {
         }
       }
 
-      setSuccess('Account created successfully! Please check your email to confirm your account.');
+      toast({
+        title: "Account Created Successfully!",
+        description: "Please check your email and verify your account to continue.",
+      });
       
-      // Redirect to login page after 3 seconds
+      // Redirect to login page after 2 seconds
       setTimeout(() => {
         navigate('/login');
-      }, 3000);
+      }, 2000);
 
     } catch (error: unknown) {
       console.error('Signup error:', error);

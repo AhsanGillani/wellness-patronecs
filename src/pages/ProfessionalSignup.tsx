@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Stethoscope, Mail, Lock, Phone, MapPin, Calendar, Award, Building, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const ProfessionalSignup = () => {
   const [formData, setFormData] = useState({
@@ -39,6 +40,7 @@ const ProfessionalSignup = () => {
 
   const { signUp, user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     if (user) {
@@ -212,40 +214,17 @@ const ProfessionalSignup = () => {
           }
         }
 
-        // Also create a professional record if we have a profile ID
-        if (profileId) {
-          try {
-            const { error: professionalError } = await supabase
-              .from('professionals')
-              .insert({
-                profile_id: profileId,
-                slug: `${formData.firstName.toLowerCase()}-${formData.lastName.toLowerCase()}-${Date.now()}`,
-                profession: formData.profession || null,
-                years_experience: formData.yearsOfExperience ? parseInt(formData.yearsOfExperience) : null,
-                specialization: formData.specialization || null,
-                bio: formData.education || null,
-                practice_name: formData.practiceName || null,
-                practice_address: formData.practiceAddress || null,
-                license_number: formData.licenseNumber || null,
-                education_certifications: formData.education || null,
-                verification: 'pending'
-              });
-
-            if (professionalError) {
-              // Don't fail the signup if professional record creation fails
-            }
-          } catch (professionalInsertError) {
-            // Don't fail the signup if professional record creation fails
-          }
-        }
       }
 
-      setSuccess('Professional account created successfully! Please check your email to confirm your account.');
+      toast({
+        title: "Professional Account Created!",
+        description: "Please check your email and verify your account. Wellness will review your profile and add a verified tag within 24-48 hours.",
+      });
       
-      // Redirect to login page after 3 seconds
+      // Redirect to login page after 2 seconds
       setTimeout(() => {
         navigate('/login');
-      }, 3000);
+      }, 2000);
 
     } catch (error: unknown) {
       console.error('Signup error:', error);
