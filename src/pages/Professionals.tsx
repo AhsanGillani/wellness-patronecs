@@ -272,7 +272,7 @@ const Professionals = () => {
             </div>
 
             <div className="space-y-3">
-              <Button className="w-full" onClick={clearFilters} variant={hasActiveFilters ? "default" : "secondary"}>
+              <Button className="w-full" onClick={clearFilters} variant={hasActiveFilters ? "primary" : "secondary"}>
                 {hasActiveFilters ? "Clear filters" : "No filters applied"}
               </Button>
               {hasActiveFilters && (

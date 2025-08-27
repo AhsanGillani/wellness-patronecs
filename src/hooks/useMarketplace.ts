@@ -93,7 +93,7 @@ export function useProfiles() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data || []) as Profile[];
+      return data || [];
     },
   });
 }
@@ -104,7 +104,7 @@ export function useProfessional(userId: string) {
     queryFn: async () => {
       const { data, error } = await simpleSupabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
       if (error) throw error;
-      return data as Profile | null;
+      return data;
     },
   });
 }
@@ -136,7 +136,7 @@ export function useProfessionals() {
       
       // For now, return just the profiles data
       // We'll add the professionals join later once we confirm the basic query works
-      return (profilesData || []) as Profile[];
+      return profilesData || [];
     },
   });
 }
@@ -470,7 +470,7 @@ export function useNotifications() {
   return useQuery({
     queryKey: ["notifications"],
     queryFn: async (): Promise<NotificationRow[]> => {
-      const { data, error } = await simpleSupabase
+      const { data, error } = await (simpleSupabase as any)
         .from("notifications")
         .select("id, recipient_profile_id, recipient_role, title, body, link_url, data, read_at, created_at")
         .order("created_at", { ascending: false });
@@ -484,7 +484,7 @@ export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id }: { id: string }) => {
-      const { error } = await simpleSupabase
+      const { error } = await (simpleSupabase as any)
         .from("notifications")
         .update({ read_at: new Date().toISOString() })
         .eq("id", id);
@@ -503,7 +503,7 @@ export function useNotification(id?: string) {
     enabled: Boolean(id),
     queryFn: async (): Promise<NotificationRow | null> => {
       if (!id) return null;
-      const { data, error } = await simpleSupabase
+      const { data, error } = await (simpleSupabase as any)
         .from("notifications")
         .select("id, recipient_profile_id, recipient_role, title, body, link_url, data, read_at, created_at")
         .eq("id", id)
@@ -531,7 +531,7 @@ export function useWishlistStatus(serviceId?: number) {
         .maybeSingle();
       if (!profile) return { active: false } as { active: boolean };
 
-      const { data, error } = await simpleSupabase
+      const { data, error } = await (simpleSupabase as any)
         .from("availability_wishlist")
         .select("id, active")
         .eq("patient_profile_id", profile.id)
@@ -561,7 +561,7 @@ export function useWishlistSubscribe() {
       if (!patientProfile) throw new Error("Profile not found");
 
       // Upsert active subscription
-      const { error } = await simpleSupabase
+      const { error } = await (simpleSupabase as any)
         .from("availability_wishlist")
         .upsert({ patient_profile_id: patientProfile.id, service_id: serviceId, active: true }, { onConflict: "patient_profile_id,service_id" });
       if (error) throw error;
@@ -593,7 +593,7 @@ export function useWishlistUnsubscribe() {
         .maybeSingle();
       if (!patientProfile) throw new Error("Profile not found");
 
-      const { error } = await simpleSupabase
+      const { error } = await (simpleSupabase as any)
         .from("availability_wishlist")
         .update({ active: false })
         .eq("patient_profile_id", patientProfile.id)
