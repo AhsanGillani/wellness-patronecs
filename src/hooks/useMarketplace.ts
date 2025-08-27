@@ -93,7 +93,7 @@ export function useProfiles() {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data || []) as Profile[];
+      return data || [];
     },
   });
 }
@@ -104,7 +104,7 @@ export function useProfessional(userId: string) {
     queryFn: async () => {
       const { data, error } = await simpleSupabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
       if (error) throw error;
-      return data as Profile | null;
+      return data;
     },
   });
 }
@@ -136,7 +136,7 @@ export function useProfessionals() {
       
       // For now, return just the profiles data
       // We'll add the professionals join later once we confirm the basic query works
-      return (profilesData || []) as Profile[];
+      return profilesData || [];
     },
   });
 }

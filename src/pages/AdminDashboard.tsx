@@ -146,7 +146,7 @@ const AdminDashboard = () => {
     id: string; 
       name: string; 
       profession: string;
-      yearsOfExperience: number;
+      yearsOfExperience: string;
       specialization: string;
       email: string; 
       verification: "pending" | "verified" | "rejected";
@@ -165,7 +165,7 @@ const AdminDashboard = () => {
           id: profile.id,
           name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Anonymous Professional',
           profession: profile.specialization || 'Not specified',
-          yearsOfExperience: profile.years_experience || 0,
+          yearsOfExperience: profile.years_experience || '0',
           specialization: profile.specialization || 'Not specified',
           email: profile.email || 'No email',
           verification: (profile.verification_status as "pending" | "verified" | "rejected") || 'pending',
