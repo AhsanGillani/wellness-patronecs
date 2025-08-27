@@ -127,7 +127,8 @@ create table if not exists public.blog_posts (
 create unique index if not exists blog_posts_slug_unique on public.blog_posts(lower(slug));
 alter table public.blog_posts enable row level security;
 create policy "Published blogs readable by everyone" on public.blog_posts for select using (visibility = 'published');
-create policy "Authors manage their blogs" on public.blog_posts for insert to authenticated with check (author_user_id = auth.uid());
+create policy "Authenticated users can read all blogs" on public.blog_posts for select using (auth.role() = 'authenticated');
+create policy "Authors manage their blogs" on public.blog_posts for insert to authenticated check (author_user_id = auth.uid());
 create policy "Authors update their blogs" on public.blog_posts for update to authenticated using (author_user_id = auth.uid()) with check (author_user_id = auth.uid());
 
 

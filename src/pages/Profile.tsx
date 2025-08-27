@@ -5,16 +5,34 @@ import avatar from "@/assets/avatar-1.jpg";
 import { useState } from "react";
 import { Upload } from "lucide-react";
 import { parse, isToday, differenceInMinutes, addMinutes, format } from "date-fns";
+import { useAuth } from "@/contexts/AuthContext";
 
 const PatientTabs = () => {
+	const { profile } = useAuth();
 	// Pull from the same upcomingAppointments mock as Overview for consistency
 	const now = new Date();
 	const todayLabel = format(now, "MMM dd, yyyy");
 	const timeNowLabel = format(now, "h:mm a");
 	const laterTodayLabel = format(addMinutes(now, 30), "h:mm a");
 	const upcomingAppointments = [
-		{ id: 1, title: "Dr. Jane Cooper", subtitle: "Cardiologist", date: todayLabel, time: timeNowLabel, status: "Confirmed", isLive: true },
-		{ id: 2, title: "Alex Morgan", subtitle: "Nutritionist", date: todayLabel, time: laterTodayLabel, status: "Confirmed", isLive: false },
+		{ 
+			id: 1, 
+			title: profile ? `${profile.first_name} ${profile.last_name}` : "Professional", 
+			subtitle: profile?.specialization || profile?.profession || "Professional", 
+			date: todayLabel, 
+			time: timeNowLabel, 
+			status: "Confirmed", 
+			isLive: true 
+		},
+		{ 
+			id: 2, 
+			title: profile ? `${profile.first_name} ${profile.last_name}` : "Professional", 
+			subtitle: profile?.specialization || profile?.profession || "Professional", 
+			date: todayLabel, 
+			time: laterTodayLabel, 
+			status: "Confirmed", 
+			isLive: false 
+		},
 	];
 	const [activeTab, setActiveTab] = useState<"appointments" | "visits">("appointments");
 	const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
@@ -76,12 +94,16 @@ const PatientTabs = () => {
 						<div className="rounded-xl border p-4 space-y-2">
 							<div className="flex items-center justify-between">
 								<div>
-									<div className="font-medium text-slate-900">Alex Morgan</div>
+									<div className="font-medium text-slate-900">
+										{profile ? `${profile.first_name} ${profile.last_name}` : "Professional"}
+									</div>
 									<div className="text-xs text-slate-600">Mar 15, 2025 • 02:00 PM</div>
 								</div>
 								<div className="text-xs text-slate-600">Completed</div>
 							</div>
-							<div className="text-sm text-slate-700">Nutrition Follow-up • Video call</div>
+							<div className="text-sm text-slate-700">
+								{profile?.specialization || profile?.profession || "Professional"} Follow-up • Video call
+							</div>
 						</div>
 					</div>
 				)}
@@ -149,12 +171,24 @@ const Profile = () => {
 	const laterTodayLabel = format(addMinutes(now, 30), "h:mm a");
 
 	const upcomingAppointments = [
-		// Today, starting now (doctor has started session -> Join enabled)
-		{ id: 1, title: "Dr. Jane Cooper", subtitle: "Cardiologist", date: todayLabel, time: timeNowLabel, status: "Confirmed", isLive: true },
-		// Today, later (not live yet -> Join hidden until doctor starts)
-		{ id: 2, title: "Alex Morgan", subtitle: "Nutritionist", date: todayLabel, time: laterTodayLabel, status: "Confirmed", isLive: false },
-		// Future example
-		{ id: 3, title: "Jamie Lee", subtitle: "Therapist", date: format(addMinutes(now, 60*24*3), "MMM dd, yyyy"), time: "11:00 AM", status: "Pending", isLive: false },
+		{ 
+			id: 1, 
+			title: profile ? `${profile.first_name} ${profile.last_name}` : "Professional", 
+			subtitle: profile?.specialization || profile?.profession || "Professional", 
+			date: todayLabel, 
+			time: timeNowLabel, 
+			status: "Confirmed", 
+			isLive: true 
+		},
+		{ 
+			id: 2, 
+			title: profile ? `${profile.first_name} ${profile.last_name}` : "Professional", 
+			subtitle: profile?.specialization || profile?.profession || "Professional", 
+			date: todayLabel, 
+			time: laterTodayLabel, 
+			status: "Confirmed", 
+			isLive: false 
+		},
 	];
 
 	const getApptDateTime = (a: { date: string; time: string }) => {

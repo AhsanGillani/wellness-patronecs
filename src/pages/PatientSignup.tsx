@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { User, Mail, Lock, Phone, MapPin, Calendar, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const PatientSignup = () => {
   const [formData, setFormData] = useState({
@@ -49,7 +50,7 @@ const PatientSignup = () => {
   };
 
   const canSubmit = formData.firstName && formData.lastName && formData.email && 
-                   formData.password && formData.confirmPassword && formData.agreeToTerms;
+                formData.password && formData.confirmPassword && formData.agreeToTerms;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,20 +70,138 @@ const PatientSignup = () => {
     setError("");
     setSuccess("");
 
-    const { error } = await signUp(formData.email, formData.password, {
-      first_name: formData.firstName,
-      last_name: formData.lastName,
-      role: 'patient'
-    });
+    try {
+      // First, create the user account
+      const { data: signUpData, error: signUpError } = await signUp(formData.email, formData.password, {
+        first_name: formData.firstName,
+        last_name: formData.lastName,
+        role: 'patient'
+      });
 
-    if (error) {
-      if (error.message.includes('User already registered')) {
-        setError('An account with this email already exists. Please sign in instead.');
-      } else {
-        setError(error.message || 'An error occurred during signup.');
+      if (signUpError) {
+        if (signUpError.message.includes('User already registered')) {
+          setError('An account with this email already exists. Please sign in instead.');
+        } else {
+          setError(signUpError.message || 'An error occurred during signup.');
+        }
+        setLoading(false);
+        return;
       }
-    } else {
+
+      // Wait a moment for the database trigger to create the profile
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Get the current user - try multiple approaches
+      let user = null;
+      
+      // Try to get user from signup response first
+      if (signUpData?.user) {
+        user = signUpData.user;
+      } else {
+        // Fallback to getCurrentUser
+        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        user = currentUser;
+      }
+
+      if (!user) {
+        setError('Account created but unable to create profile. Please try logging in.');
+        setLoading(false);
+        return;
+      }
+      
+      if (user) {
+        // First check if profile exists
+        const { data: existingProfile, error: profileCheckError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', user.id)
+          .single();
+        
+        let profileId = existingProfile?.id;
+        
+        // If profile doesn't exist (either no data or error), create it manually
+        if (!existingProfile) {
+          try {
+            const { data: newProfile, error: createProfileError } = await supabase
+              .from('profiles')
+              .insert({
+                user_id: user.id,
+                email: formData.email,
+                first_name: formData.firstName,
+                last_name: formData.lastName,
+                slug: `${formData.firstName.toLowerCase()}-${formData.lastName.toLowerCase()}-${Date.now()}`,
+                role: 'patient',
+                phone: formData.phone || null,
+                date_of_birth: formData.dateOfBirth || null,
+                location: formData.address && formData.city && formData.state && formData.zipCode 
+                  ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`.trim()
+                  : null,
+                health_goals: formData.healthGoals || null
+              })
+              .select()
+              .single();
+            
+            if (createProfileError) {
+              // Try a simpler insert without the complex fields
+              const { data: simpleProfile, error: simpleError } = await supabase
+                .from('profiles')
+                .insert({
+                  user_id: user.id,
+                  email: formData.email,
+                  first_name: formData.firstName,
+                  last_name: formData.lastName,
+                  slug: `${formData.firstName.toLowerCase()}-${formData.lastName.toLowerCase()}-${Date.now()}`,
+                  role: 'patient'
+                })
+                .select()
+                .single();
+             
+              if (simpleError) {
+                // Don't fail the signup if simple profile creation fails
+              } else {
+                profileId = simpleProfile.id;
+              }
+            } else {
+              profileId = newProfile.id;
+            }
+          } catch (insertError) {
+            // Don't fail the signup if profile creation fails
+          }
+        } else if (existingProfile) {
+          try {
+            // Update the existing profile with additional information
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .update({
+                phone: formData.phone || null,
+                date_of_birth: formData.dateOfBirth || null,
+                location: formData.address && formData.city && formData.state && formData.zipCode 
+                  ? `${formData.address}, ${formData.city}, ${formData.state} ${formData.zipCode}`.trim()
+                  : null,
+                health_goals: formData.healthGoals || null,
+                updated_at: new Date().toISOString()
+              })
+              .eq('user_id', user.id);
+
+            if (profileError) {
+              // Don't fail the signup if profile update fails
+            }
+          } catch (updateError) {
+            // Don't fail the signup if profile update fails
+          }
+        }
+      }
+
       setSuccess('Account created successfully! Please check your email to confirm your account.');
+      
+      // Redirect to login page after 3 seconds
+      setTimeout(() => {
+        navigate('/login');
+      }, 3000);
+
+    } catch (error: unknown) {
+      console.error('Signup error:', error);
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred.');
     }
 
     setLoading(false);
@@ -112,6 +231,7 @@ const PatientSignup = () => {
                 {success && (
                   <div className="rounded-lg bg-green-50 border-l-4 border-green-400 p-4">
                     <p className="text-sm text-green-800">{success}</p>
+                    <p className="text-sm text-green-700 mt-1">You will be redirected to the login page in a few seconds...</p>
                   </div>
                 )}
 
