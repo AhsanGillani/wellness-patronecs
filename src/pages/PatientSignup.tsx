@@ -73,8 +73,7 @@ const PatientSignup = () => {
     setSuccess("");
 
     try {
-      // First, create the user account with all form data
-      const { error: signUpError } = await signUp(formData.email, formData.password, {
+      const signUpResult = await signUp(formData.email, formData.password, {
         first_name: formData.firstName,
         last_name: formData.lastName,
         role: 'patient',
@@ -85,6 +84,10 @@ const PatientSignup = () => {
           : null,
         health_goals: formData.healthGoals
       });
+
+      console.log('Patient signup response:', signUpResult);
+      
+      const signUpError = signUpResult.error;
 
       if (signUpError) {
         if (signUpError.message.includes('User already registered')) {
