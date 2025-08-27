@@ -81,7 +81,7 @@ const ProfessionalSignup = () => {
 
     try {
       // First, create the user account
-      const { data: signUpData, error: signUpError } = await signUp(formData.email, formData.password, {
+      const { error: signUpError } = await signUp(formData.email, formData.password, {
         first_name: formData.firstName,
         last_name: formData.lastName,
         role: 'professional'
@@ -103,14 +103,9 @@ const ProfessionalSignup = () => {
       // Get the current user - try multiple approaches
       let user = null;
       
-      // Try to get user from signup response first
-      if (signUpData?.user) {
-        user = signUpData.user;
-      } else {
-        // Fallback to getCurrentUser
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        user = currentUser;
-      }
+      // Get current user from auth
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      user = currentUser;
 
       if (!user) {
         setError('Account created but unable to create profile. Please try logging in.');
