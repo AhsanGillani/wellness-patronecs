@@ -1,9 +1,11 @@
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import Button from "@/components/ui/button";
 import { useWishlistStatus, useWishlistSubscribe, useWishlistUnsubscribe } from "@/hooks/useMarketplace";
 import { useProfessionals, useProfessionalServices } from "@/hooks/useDatabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import { simpleSupabase } from "@/lib/simple-supabase";
 import { useEffect, useMemo, useState } from "react";
 
@@ -36,6 +38,35 @@ const daysInMonth = (year: number, monthIndex0: number) => {
   return days;
 };
 
+// Weekday normalization helpers
+const weekdayShorts = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"] as const;
+const normalizeDayName = (name: string): string | null => {
+  if (!name) return null;
+  const trimmed = name.trim();
+  const lower = trimmed.toLowerCase();
+  // Match full names, shorts, and common variants
+  const map: Record<string, string> = {
+    sunday: "Sun", sun: "Sun",
+    monday: "Mon", mon: "Mon",
+    tuesday: "Tue", tue: "Tue", tues: "Tue",
+    wednesday: "Wed", wed: "Wed",
+    thursday: "Thu", thu: "Thu", thurs: "Thu",
+    friday: "Fri", fri: "Fri",
+    saturday: "Sat", sat: "Sat",
+  };
+  return map[lower] || null;
+};
+const toDaySet = (days: any): Set<string> => {
+  const set = new Set<string>();
+  if (Array.isArray(days)) {
+    for (const d of days) {
+      const n = normalizeDayName(String(d));
+      if (n) set.add(n);
+    }
+  }
+  return set;
+};
+
 const appointmentTypes = [
   { key: "consult", label: "Initial consultation (30 min)" },
   { key: "follow", label: "Follow-up (45 min)" },
@@ -44,6 +75,7 @@ const appointmentTypes = [
 
 const BookAppointment = () => {
   const params = useParams();
+  const navigate = useNavigate();
   const professionalId = params.id; // legacy route: /book/:id
   const providerSlug = (params as any).providerSlug as string | undefined; // new route: /book/:providerSlug/:serviceSlug
   const serviceSlug = (params as any).serviceSlug as string | undefined;
@@ -80,6 +112,9 @@ const BookAppointment = () => {
   const [notes, setNotes] = useState<string>("");
   const [contact, setContact] = useState<string>("");
   const [showPayment, setShowPayment] = useState<boolean>(false);
+  const [isBooking, setIsBooking] = useState<boolean>(false);
+  const [bookingError, setBookingError] = useState<string>("");
+  const [bookingSuccess, setBookingSuccess] = useState<boolean>(false);
   const [cardName, setCardName] = useState<string>("");
   const [cardNumber, setCardNumber] = useState<string>("");
   const [expiry, setExpiry] = useState<string>("");
@@ -90,10 +125,24 @@ const BookAppointment = () => {
 
   // Calendar + availability state
   const now = new Date();
-  // Rolling availability window (days ahead to show)
-  const windowDays = 30;
+  // Weekly availability window
+  const windowDays = 7;
   const [availableByDate, setAvailableByDate] = useState<Record<string, string[]>>({});
   const [loadingAvail, setLoadingAvail] = useState<boolean>(false);
+  const [autoAdvanceCount, setAutoAdvanceCount] = useState<number>(0);
+  const [computedWeekStart, setComputedWeekStart] = useState<string>("");
+
+  // Current week start (Sunday) for pagination
+  const startOfWeek = (d: Date) => {
+    const day = d.getDay(); // 0=Sun
+    const start = new Date(d);
+    start.setDate(d.getDate() - day);
+    start.setHours(0,0,0,0);
+    return start;
+  };
+  const [currentWeekStart, setCurrentWeekStart] = useState<string>(formatYmd(startOfWeek(now)));
+  const todayWeekStart = formatYmd(startOfWeek(now));
+  const todayYmd = formatYmd(new Date());
 
   // Build available slots for a specific date using service availability json
   const buildServiceDaySlots = (service: any, ymd: string): string[] => {
@@ -101,12 +150,17 @@ const BookAppointment = () => {
     if (!availability) return [];
     const duration = Number(service?.duration_min) || 30;
     const weekday = new Date(ymd).getDay(); // 0=Sun
-    const weekdayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-    const weekdayName = weekdayNames[weekday];
+    const weekdayName = weekdayShorts[weekday];
+    const daySet = toDaySet(availability.days);
 
-    const makeSlots = (windows: Array<{ start: string; end: string }>) => {
+    const makeSlots = (windows: Array<{ start: string; end: string }> | string[]) => {
       const slots: string[] = [];
-      for (const w of windows || []) {
+      if (!Array.isArray(windows)) return slots;
+      if (windows.length > 0 && typeof windows[0] === 'string') {
+        return (windows as string[]).slice().sort(compareTime);
+      }
+      for (const w of (windows as Array<{ start: string; end: string }>) || []) {
+        if (!w?.start || !w?.end || !w.start.trim() || !w.end.trim()) continue;
         let cursor = w.start;
         while (compareTime(addMinutes(cursor, duration), w.end) <= 0) {
           slots.push(cursor);
@@ -116,11 +170,25 @@ const BookAppointment = () => {
       return slots;
     };
 
-    if (availability.scheduleType === "custom" && availability.customSchedules && availability.customSchedules[ymd]) {
-      return makeSlots(availability.customSchedules[ymd].timeSlots || []);
+    if (availability.scheduleType === "custom" && availability.customSchedules) {
+      // Accept either exact date keys or weekday-name keys
+      const custom = availability.customSchedules[ymd]
+        || availability.customSchedules[weekdayName]
+        || availability.customSchedules[normalizeDayName(weekdayName) as any];
+      if (custom) {
+        const slots = makeSlots(custom.timeSlots || custom.slots || []);
+        return slots;
+      }
     }
-    if (availability.days && availability.days.includes(weekdayName)) {
-      return makeSlots(availability.timeSlots || []);
+    // Weekly ("same") or when days list applies
+    if ((availability.scheduleType === 'same' || availability.scheduleType === 'weekly' || !availability.scheduleType) && daySet.has(weekdayName)) {
+      const weekly = availability.timeSlots || availability.slots || [];
+      return makeSlots(weekly);
+    }
+    // If scheduleType is custom but no custom for this date/day, fall back to weekly if provided
+    if (availability.scheduleType === 'custom' && daySet.has(weekdayName)) {
+      const weekly = availability.timeSlots || availability.slots || [];
+      return makeSlots(weekly);
     }
     return [];
   };
@@ -130,21 +198,77 @@ const BookAppointment = () => {
     if (!prof) return;
     setLoadingAvail(true);
     try {
-      const start = new Date(now);
-      const end = new Date(now);
+      const start = new Date(currentWeekStart);
+      const end = new Date(start);
       end.setDate(end.getDate() + windowDays - 1);
       const ymdStart = formatYmd(start);
       const ymdEnd = formatYmd(end);
 
-      // 1) Start from service availability json if we are in a service flow and it exists
+      // Use service availability JSONB if available, otherwise fallback to availability_slots
       const base: Record<string, string[]> = {};
-      if (isServiceFlow && selectedService) {
+      console.log('BookAppointment - Loading availability for professional:', prof.id, 'from', ymdStart, 'to', ymdEnd);
+      
+      if (isServiceFlow && selectedService?.availability) {
+        // Use service availability JSONB
+        console.log('BookAppointment - Using service availability JSONB:', selectedService.availability);
+        const availability = selectedService.availability;
         const rollingDays: Date[] = [];
-        const cursor = new Date(start);
-        while (cursor <= end) { rollingDays.push(new Date(cursor)); cursor.setDate(cursor.getDate() + 1); }
-        for (const d of rollingDays) { const ymd = formatYmd(d); base[ymd] = buildServiceDaySlots(selectedService, ymd); }
+        const cur = new Date(start);
+        while (cur <= end) { rollingDays.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
+        const daySet = toDaySet(availability.days);
+        console.log('BookAppointment - Normalized days set:', Array.from(daySet));
+        
+        for (const d of rollingDays) {
+          const ymd = formatYmd(d);
+          const weekday = d.getDay(); // 0=Sun
+          const weekdayName = weekdayShorts[weekday];
+          
+          if (availability.scheduleType === "custom" && availability.customSchedules) {
+            // Custom schedule for specific date or weekday
+            const custom = availability.customSchedules[ymd]
+              || availability.customSchedules[weekdayName]
+              || availability.customSchedules[normalizeDayName(weekdayName) as any];
+            const timeSlots = custom ? (custom.timeSlots || custom.slots || []) : [];
+            const duration = Number(selectedService?.duration_min) || 30;
+            const slots: string[] = [];
+            if (Array.isArray(timeSlots) && timeSlots.length > 0 && typeof timeSlots[0] === 'string') {
+              base[ymd] = (timeSlots as string[]).slice().sort(compareTime);
+              continue;
+            }
+            for (const w of (timeSlots as Array<{ start: string; end: string }>) || []) {
+              if (!w?.start || !w?.end || !w.start.trim() || !w.end.trim()) continue;
+              let cursor = w.start;
+              while (compareTime(addMinutes(cursor, duration), w.end) <= 0) {
+                slots.push(cursor);
+                cursor = addMinutes(cursor, duration);
+              }
+            }
+            base[ymd] = slots;
+          } else if ((availability.scheduleType === 'same' || availability.scheduleType === 'weekly' || !availability.scheduleType) && daySet.has(weekdayName)) {
+            // Regular weekly schedule
+            const timeSlots = availability.timeSlots || availability.slots || [];
+            const duration = Number(selectedService?.duration_min) || 30;
+            const slots: string[] = [];
+            if (Array.isArray(timeSlots) && timeSlots.length > 0 && typeof timeSlots[0] === 'string') {
+              base[ymd] = (timeSlots as string[]).slice().sort(compareTime);
+            } else {
+              for (const w of (timeSlots as Array<{ start: string; end: string }>) || []) {
+                if (!w?.start || !w?.end || !w.start.trim() || !w.end.trim()) continue;
+                let cursor = w.start;
+                while (compareTime(addMinutes(cursor, duration), w.end) <= 0) {
+                  slots.push(cursor);
+                  cursor = addMinutes(cursor, duration);
+                }
+              }
+              base[ymd] = slots;
+            }
+          } else {
+            base[ymd] = [];
+          }
+        }
       } else {
-        // 2) Fallback to raw availability_slots if available (per professional), not booked
+        // Fallback to availability_slots table
+        console.log('BookAppointment - Falling back to availability_slots table');
         const { data: slots, error: slotsErr } = await simpleSupabase
           .from("availability_slots")
           .select("id,start_time,end_time,is_booked")
@@ -152,10 +276,11 @@ const BookAppointment = () => {
           .eq("is_booked", false)
           .gte("start_time", `${ymdStart}T00:00:00+00:00`)
           .lte("start_time", `${ymdEnd}T23:59:59+00:00`);
+        console.log('BookAppointment - Availability slots query result:', { slots, error: slotsErr, count: slots?.length });
         if (!slotsErr && Array.isArray(slots)) {
           const rollingDays: Date[] = [];
-          const cursor = new Date(start);
-          while (cursor <= end) { rollingDays.push(new Date(cursor)); cursor.setDate(cursor.getDate() + 1); }
+          const cur = new Date(start);
+          while (cur <= end) { rollingDays.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
           for (const d of rollingDays) { const ymd = formatYmd(d); base[ymd] = []; }
           for (const s of slots as any[]) {
             const dt = new Date(s.start_time);
@@ -168,15 +293,31 @@ const BookAppointment = () => {
           for (const k of Object.keys(base)) base[k] = (base[k] || []).sort(compareTime);
         }
       }
+      
+      console.log('BookAppointment - Built availability base:', base);
+
+      // Filter out past times for today's date so only future times remain
+      try {
+        const nowLocal = new Date();
+        const nowYmd = formatYmd(nowLocal);
+        const nowHm = `${toTwo(nowLocal.getHours())}:${toTwo(nowLocal.getMinutes())}`;
+        if (base[nowYmd]) {
+          base[nowYmd] = (base[nowYmd] || []).filter((t) => compareTime(t, nowHm) > 0);
+        }
+      } catch (e) {
+        console.warn('Failed to filter past times for today:', e);
+      }
 
       // Remove times that are already booked via appointments table (service-specific only)
       if (isServiceFlow && selectedService) {
+        console.log('BookAppointment - Filtering out booked appointments for service:', selectedService.id);
         const { data: appts, error: apptErr } = await simpleSupabase
           .from("appointments")
           .select("date,start_time,end_time")
           .eq("service_id", selectedService.id)
           .gte("date", ymdStart)
           .lte("date", ymdEnd);
+        console.log('BookAppointment - Booked appointments:', { appts, error: apptErr, count: appts?.length });
         if (!apptErr && Array.isArray(appts)) {
           const bookedByDate: Record<string, Set<string>> = {};
           for (const a of appts as any[]) {
@@ -190,7 +331,14 @@ const BookAppointment = () => {
         }
       }
 
+      // Deduplicate and sort slots per day to avoid duplicate keys and UI warnings
+      for (const k of Object.keys(base)) {
+        const list = base[k] || [];
+        base[k] = Array.from(new Set(list)).sort(compareTime);
+      }
+      console.log('BookAppointment - Final availability after filtering:', base);
       setAvailableByDate(base);
+      setComputedWeekStart(ymdStart);
     } finally {
       setLoadingAvail(false);
     }
@@ -198,7 +346,32 @@ const BookAppointment = () => {
 
   // Load availability when selection changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadMonthAvailability(); }, [prof?.id, selectedService?.id, isServiceFlow]);
+  useEffect(() => { loadMonthAvailability(); }, [prof?.id, selectedService?.id, isServiceFlow, currentWeekStart]);
+
+  // Auto-advance to next week if current week has zero slots (up to 8 weeks)
+  useEffect(() => {
+    if (loadingAvail) return;
+    if (!computedWeekStart || computedWeekStart !== currentWeekStart) return;
+    // compute total slots in current week
+    const start = new Date(currentWeekStart);
+    let total = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      const ymd = formatYmd(d);
+      total += (availableByDate[ymd] || []).length;
+    }
+    // Only hop once automatically to avoid chains
+    if (total === 0 && autoAdvanceCount < 1) {
+      const next = new Date(currentWeekStart);
+      next.setDate(next.getDate() + 7);
+      setCurrentWeekStart(formatYmd(next));
+      setAutoAdvanceCount(autoAdvanceCount + 1);
+    } else if (total > 0 && autoAdvanceCount !== 0) {
+      // reset counter when we find a week with slots
+      setAutoAdvanceCount(0);
+    }
+  }, [availableByDate, loadingAvail, currentWeekStart, autoAdvanceCount, computedWeekStart]);
 
   // Auto-select first available date if none selected
   useEffect(() => {
@@ -221,6 +394,9 @@ const BookAppointment = () => {
       await unsubscribeMutation.mutateAsync({ serviceId: Number(selectedService.id) });
     }
   };
+
+  const { profile: authProfile } = useAuth();
+  const { toast } = useToast();
 
   if (loading || (isServiceFlow && servicesLoading)) {
     return (
@@ -272,6 +448,75 @@ const BookAppointment = () => {
   const priceCents = selectedService?.price_cents;
   const priceLabel = typeof priceCents === 'number' ? `$${(priceCents / 100).toFixed(2)}` : undefined;
 
+  const handleConfirmAndPay = async () => {
+    if (!isServiceFlow || !selectedService?.id || !date || !slot || !authProfile?.id) {
+      setBookingError('Missing required info. Please select date/time and ensure you are signed in.');
+      toast({ title: 'Select date and time', description: 'Please choose a day and time to continue.' });
+      return;
+    }
+    if (date < todayYmd) {
+      setBookingError('You cannot book a past date.');
+      toast({ title: 'Not allowed', description: 'You cannot book a past date.' });
+      return;
+    }
+    try {
+      setIsBooking(true);
+      setBookingError("");
+      const duration = Number(selectedService.duration_min) || 30;
+      const end = addMinutes(slot, duration);
+      const { error } = await simpleSupabase
+        .from('appointments')
+        .insert({
+          service_id: selectedService.id,
+          patient_profile_id: authProfile.id,
+          professional_id: prof.id,
+          mode: selectedService.mode,
+          date: date,
+          start_time: `${slot}:00`,
+          end_time: `${end}:00`,
+          price_cents: selectedService.price_cents ?? 0,
+        });
+      if (error) {
+        setBookingError(error.message || 'Failed to create appointment');
+        return;
+      }
+
+      // Best-effort: mark availability_slots as booked if a matching slot exists
+      try {
+        const startIso = new Date(`${date}T${slot}:00Z`).toISOString();
+        const endIso = new Date(`${date}T${end}:00Z`).toISOString();
+        const { data: slotRows, error: slotErr } = await simpleSupabase
+          .from('availability_slots')
+          .select('id')
+          .eq('professional_id', prof.id)
+          .eq('is_booked', false)
+          .eq('start_time', startIso)
+          .eq('end_time', endIso)
+          .limit(1);
+        if (!slotErr && slotRows && slotRows.length > 0) {
+          await simpleSupabase
+            .from('availability_slots')
+            .update({ is_booked: true })
+            .eq('id', slotRows[0].id);
+        }
+      } catch (slotUpdateErr) {
+        // non-fatal
+        console.warn('Unable to mark availability slot as booked:', slotUpdateErr);
+      }
+ 
+      setBookingSuccess(true);
+      toast({ title: 'Booked', description: 'Your appointment has been scheduled.' });
+      // Close modal and go to Profile → Bookings
+      setTimeout(() => {
+        setShowPayment(false);
+        setBookingSuccess(false);
+        navigate('/profile#bookings');
+      }, 900);
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
       <Header />
@@ -285,13 +530,33 @@ const BookAppointment = () => {
               <p className="mt-1 text-slate-600">with {prof.name} • {prof.title}</p>
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                {/* Days list (next 30 days) - only days with available slots */}
+                {/* Days list (current week) */}
                 <div className="sm:col-span-2">
+                  <div className="flex items-center justify-between">
                   <div className="text-sm font-medium text-slate-700">Select day</div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        onClick={() => { 
+                          if (currentWeekStart <= todayWeekStart) { 
+                            toast({ title: "Not allowed", description: "You can’t browse or book past weeks." }); 
+                            return; 
+                          }
+                          const d = new Date(currentWeekStart); 
+                          d.setDate(d.getDate() - 7); 
+                          const nextYmd = formatYmd(d); 
+                          setCurrentWeekStart(nextYmd < todayWeekStart ? todayWeekStart : nextYmd); 
+                          setDate(""); setSlot(""); 
+                        }}
+                        disabled={currentWeekStart <= todayWeekStart}
+                      >Previous week</Button>
+                      <Button variant="secondary" onClick={() => { const d = new Date(currentWeekStart); d.setDate(d.getDate() + 7); setCurrentWeekStart(formatYmd(d)); setDate(""); setSlot(""); }}>Next week</Button>
+                    </div>
+                  </div>
                   <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {(() => {
                       const items: JSX.Element[] = [];
-                      const start = new Date(now);
+                      const start = new Date(currentWeekStart);
                       for (let i = 0; i < windowDays; i++) {
                         const d = new Date(start);
                         d.setDate(start.getDate() + i);
@@ -299,7 +564,8 @@ const BookAppointment = () => {
                         const isSelected = date === ymd;
                         const slots = (availableByDate[ymd] || []);
                         const hasSlots = slots.length > 0;
-                        if (!hasSlots) continue;
+                        const isPast = ymd < todayYmd;
+                        if (!hasSlots || isPast) continue;
                         items.push(
                           <button
                             key={ymd}
@@ -317,6 +583,29 @@ const BookAppointment = () => {
                       return items;
                     })()}
                   </div>
+                  {(() => {
+                    // If entire week has no slots, show CTA to see next week
+                    const start = new Date(currentWeekStart);
+                    let total = 0;
+                    for (let i = 0; i < windowDays; i++) {
+                      const d = new Date(start);
+                      d.setDate(start.getDate() + i);
+                      const ymd = formatYmd(d);
+                      total += (availableByDate[ymd] || []).length;
+                    }
+                    if (total === 0 && !loadingAvail) {
+                      return (
+                        <div className="mt-3 rounded-md border border-dashed border-slate-300 bg-slate-50 p-3 text-center">
+                          <div className="text-sm font-medium text-slate-900">No slots this week</div>
+                          <div className="mt-1 text-xs text-slate-600">Try the next week to see more times.</div>
+                          <div className="mt-2">
+                            <Button variant="secondary" onClick={() => { const d = new Date(currentWeekStart); d.setDate(d.getDate() + 7); setCurrentWeekStart(formatYmd(d)); setDate(""); setSlot(""); }}>See next week</Button>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
                 {!isServiceFlow ? (
                 <div className="sm:col-span-2">
@@ -343,9 +632,9 @@ const BookAppointment = () => {
                 <div className="sm:col-span-2">
                   <label className="text-sm font-medium text-slate-700">Time</label>
                   <div className="mt-1 grid grid-cols-3 sm:grid-cols-6 gap-2">
-                    {(date ? (availableByDate[date] || []) : []).map((t) => (
+                    {(date ? (availableByDate[date] || []) : []).map((t, idx) => (
                       <button
-                        key={t}
+                        key={`${date || 'no-date'}-${t}-${idx}`}
                         type="button"
                         onClick={() => setSlot(t)}
                         className={`rounded-md px-3 py-2 text-sm border ${slot === t ? 'bg-violet-600 text-white border-transparent' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'}`}
@@ -483,40 +772,51 @@ const BookAppointment = () => {
             {/* Header */}
             <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-5 text-white">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-white/15">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                  </span>
+                <div className="space-y-1">
                   <h2 className="text-base font-semibold">Secure checkout</h2>
+                  <div className="text-sm text-white/90">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span className="font-medium">{prof.name}</span>
+                      {isServiceFlow ? (
+                        <>
+                          <span className="opacity-85">• {selectedService?.name}</span>
+                          <span className="opacity-85">• {selectedService?.duration_min} min</span>
+                          <span className="opacity-85">• {selectedService?.mode}</span>
+                        </>
+                      ) : (
+                        <span className="opacity-85">• {typeLabel}</span>
+                      )}
+                      <span className="opacity-85">• {date || "Select date"}</span>
+                      <span className="opacity-85">• {slot || "Select time"}</span>
+                    </div>
+                  </div>
                 </div>
                 <button aria-label="Close" className="h-8 w-8 rounded-md border border-white/20 text-white/90 hover:bg-white/10" onClick={() => setShowPayment(false)}>✕</button>
-              </div>
-              <div className="mt-3 text-sm text-white/90">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  <span className="font-medium">{prof.name}</span>
-                  <span className="opacity-85">• {typeLabel}</span>
-                  <span className="opacity-85">• {date || "Select date"}</span>
-                  <span className="opacity-85">• {slot || "Select time"}</span>
-                </div>
               </div>
             </div>
 
             {/* Body */}
             <div className="p-6">
-              {/* Card preview */}
-              <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                <div className="flex items-center justify-between">
+              {/* Booking summary */}
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
                   <div>
-                    <div className="text-xs text-slate-500">Cardholder</div>
-                    <div className="font-medium text-slate-900">{cardName || "Full name"}</div>
+                    <div className="text-sm text-slate-500">Professional</div>
+                    <div className="font-medium text-slate-900">{prof.name}</div>
+                    {isServiceFlow ? (
+                      <div className="mt-1 text-sm text-slate-700">{selectedService?.name}</div>
+                    ) : null}
+                    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-600">
+                      {isServiceFlow ? (<span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2"/></svg>{selectedService?.mode}</span>) : null}
+                      {isServiceFlow ? (<span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 6v6l4 2"/></svg>{selectedService?.duration_min} min</span>) : null}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M8 7V3m8 4V3M3 11h18M5 19h14a2 2 0 0 0 2-2v-6H3v6a2 2 0 0 0 2 2z"/></svg>{date || 'Select date'}</span>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-1"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>{slot || 'Select time'}</span>
+                    </div>
                   </div>
                   <div className="text-right">
-                    <div className="text-xs text-slate-500">Expiry</div>
-                    <div className="font-medium text-slate-900">{expiry || "MM/YY"}</div>
+                    <div className="text-xs text-slate-500">Price</div>
+                    <div className="text-base font-semibold text-slate-900">{priceLabel || '—'}</div>
                   </div>
-                </div>
-                <div className="mt-3 font-mono text-sm tracking-widest text-slate-900">
-                  {formattedCardNumber || "•••• •••• •••• ••••"}
                 </div>
               </div>
 
@@ -565,14 +865,20 @@ const BookAppointment = () => {
                 <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
                   <div className="flex items-center justify-between">
                     <span>Total</span>
-                    <span className="font-semibold text-slate-900">{prof.price}</span>
+                    <span className="font-semibold text-slate-900">{priceLabel || (isServiceFlow ? (selectedService?.price_cents ? `$${(selectedService.price_cents / 100).toFixed(2)}` : '—') : '—')}</span>
                   </div>
                   <div className="mt-1 text-xs text-slate-500">You will not be charged until the appointment is confirmed.</div>
                 </div>
 
-                <div className="mt-1 flex gap-3">
-                  <Button variant="secondary" className="flex-1" onClick={() => setShowPayment(false)}>Back</Button>
-                  <Button className="flex-1 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700" disabled={!cardName || !cardNumber || !expiry || !cvc} onClick={() => setShowPayment(false)}>Pay now</Button>
+                {bookingError && (
+                  <div className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 border border-red-200">{bookingError}</div>
+                )}
+                {bookingSuccess && (
+                  <div className="mt-2 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-700 border border-emerald-200">Appointment booked!</div>
+                )}
+                <div className="mt-2 flex gap-3">
+                  <Button variant="secondary" className="flex-1" onClick={() => setShowPayment(false)} disabled={isBooking}>Back</Button>
+                  <Button className="flex-1 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700" disabled={!cardName || !cardNumber || !expiry || !cvc || isBooking || !date || !slot} onClick={handleConfirmAndPay}>{isBooking ? 'Processing…' : 'Pay now'}</Button>
                 </div>
               </div>
             </div>

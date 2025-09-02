@@ -30,6 +30,7 @@ const PatientSignup = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const { signUp, user } = useAuth();
   const navigate = useNavigate();
@@ -111,15 +112,11 @@ const PatientSignup = () => {
       }
 
       // Account created successfully - the database trigger will create the profile
-      toast({
-        title: "Account Created Successfully!",
-        description: "Please check your email and verify your account to continue.",
-      });
-      
-      // Redirect to login page after 2 seconds
+      // Show success modal and redirect after 3 seconds
+      setShowSuccessModal(true);
       setTimeout(() => {
         navigate('/login');
-      }, 2000);
+      }, 3000);
 
     } catch (error: unknown) {
       console.error('Signup error:', error);
@@ -139,6 +136,18 @@ const PatientSignup = () => {
             {/* Form Side */}
             <div className="order-2 lg:order-1">
               <div className="rounded-2xl border bg-white p-8">
+                {showSuccessModal && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                    <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+                      <h3 className="text-lg font-semibold text-slate-900">Account created</h3>
+                      <div className="mt-3 space-y-2 text-sm text-slate-700">
+                        <p>Please check your email and verify your account.</p>
+                        <p>Your profile will be examined by the Wellness team. This may take 24–48 hours.</p>
+                        <p className="text-slate-500">Redirecting to login…</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="mb-8">
                   <h1 className="text-2xl sm:text-3xl font-bold text-slate-900">Create Patient Account</h1>
                   <p className="mt-2 text-slate-600">Join our wellness community and start your health journey</p>

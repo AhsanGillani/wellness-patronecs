@@ -4,6 +4,36 @@ import Breadcrumbs from "@/components/site/Breadcrumbs";
 import Button from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
+
+// Simple tag input component (chips) used for topics
+const TagInput = ({ value, onChange, placeholder }: { value: string[]; onChange: (v: string[]) => void; placeholder?: string }) => {
+  const [input, setInput] = useState("");
+  const addTag = () => {
+    const tag = input.trim();
+    if (!tag) return;
+    if (!value.includes(tag)) onChange([...value, tag]);
+    setInput("");
+  };
+  return (
+    <div className="rounded-lg border border-slate-200 p-2">
+      <div className="flex flex-wrap gap-1 mb-2">
+        {value.map((t) => (
+          <span key={t} className="inline-flex items-center gap-1 rounded-full bg-violet-50 px-2 py-0.5 text-xs text-violet-700">
+            {t}
+            <button className="text-violet-600 hover:text-violet-800" onClick={() => onChange(value.filter(x => x !== t))}>×</button>
+          </span>
+        ))}
+      </div>
+      <input
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
+        placeholder={placeholder || 'Type and press Enter'}
+        className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200"
+      />
+    </div>
+  );
+};
 import { useQuestions, useCreateQuestion, useCreateTopic, Question } from "@/hooks/useCommunity";
 
 const Community = () => {
@@ -42,22 +72,21 @@ const Community = () => {
       return;
     }
 
-    if (!customTopic.trim()) {
-      alert("Please enter a topic name");
-      return;
-    }
-
     try {
-      // Create or re-use existing topic by slug (server handles 409)
-      const slug = customTopic.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-      const newTopic = await createTopic.mutateAsync({
-        title: customTopic.trim(),
-        slug,
-        description: `Questions about ${customTopic.trim()}`
-      });
+      // Ensure each tag exists as a topic; collect their IDs
+      const topicIds: string[] = [];
+      for (const t of selectedTags) {
+        const slug = t.trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+        const topic = await createTopic.mutateAsync({
+          title: t.trim(),
+          slug,
+          description: `Questions about ${t.trim()}`
+        });
+        if (topic?.id) topicIds.push(topic.id);
+      }
 
       await createQuestion.mutateAsync({
-        topicId: newTopic.id,
+        topicIds,
         title: title.trim(),
         body: body.trim(),
         isAnonymous,
@@ -66,7 +95,7 @@ const Community = () => {
 
       setTitle("");
       setBody("");
-      setCustomTopic("");
+      setSelectedTags([]);
       setIsAnonymous(false);
       setGuestName("");
 
@@ -249,6 +278,8 @@ const Community = () => {
                       {/* Asked time */}
                       <span className="text-slate-600">Asked {new Date(q.created_at).toLocaleString()}</span>
                       <span className="ml-auto text-slate-500 group-hover:text-slate-600 transition-colors duration-300">{(q.answer_count ?? 0)} answers</span>
+                      <span className="text-slate-500">•</span>
+                      <span className="text-slate-500">👁️ {(q.views ?? 0)}</span>
                     </div>
                     {/* NEW badge on second line if within 24h */}
                     {(() => { const isNew = Date.now() - new Date(q.created_at).getTime() < 24*60*60*1000; return isNew; })() && (
@@ -263,12 +294,7 @@ const Community = () => {
                 </div>
                 
                 {/* Floating interaction indicators */}
-                <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="flex items-center gap-1 text-xs text-slate-400">
-                    <span>💬</span>
-                    <span>👁️</span>
-                  </div>
-                </div>
+                
                 <div className="pointer-events-none absolute inset-0 rounded-xl border-2 border-transparent group-hover:border-violet-200 transition-colors duration-300" />
               </article>
             ))}
@@ -305,11 +331,7 @@ const Community = () => {
             </div>
 
             <div className="rounded-xl border bg-white p-5 hover:shadow-lg transition-all duration-300 group">
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Tip:</strong> Enter a topic name (e.g., "Sleep", "Nutrition") and your question. The topic will be created automatically if it doesn't exist yet.
-                </p>
-              </div>
+              {/* Tip removed per request */}
               <label className="text-sm font-medium text-slate-700 mb-2 block">Title</label>
               <input
                 type="text"
@@ -328,39 +350,10 @@ const Community = () => {
                 className="w-full resize-y rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200 transition-all duration-300 group-hover:border-violet-200"
               />
 
-              <label className="mt-4 block text-sm font-medium text-slate-700 mb-2">Topic</label>
-              <input
-                type="text"
-                placeholder="e.g. Sleep, Routine, Nutrition"
-                value={customTopic}
-                onChange={(e) => setCustomTopic(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200 transition-all duration-300 group-hover:border-violet-200"
-              />
+              <label className="mt-4 block text-sm font-medium text-slate-700 mb-2">Topics</label>
+              <TagInput value={selectedTags} onChange={setSelectedTags} placeholder="Type a topic and press Enter" />
 
-              <div className="mt-4 flex items-center gap-3">
-                <label className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={isAnonymous}
-                    onChange={(e) => setIsAnonymous(e.target.checked)}
-                    className="rounded border-slate-300 text-violet-600 focus:ring-violet-500"
-                  />
-                  <span className="text-sm text-slate-700">Post anonymously</span>
-                </label>
-              </div>
-
-              {!isAnonymous && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-slate-700 mb-2">Your name (optional)</label>
-                  <input
-                    type="text"
-                    placeholder="Your name"
-                    value={guestName}
-                    onChange={(e) => setGuestName(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm outline-none focus:border-violet-400 focus:ring-2 focus:ring-violet-200 transition-all duration-300 group-hover:border-violet-200"
-              />
-                </div>
-              )}
+              
 
               <div className="mt-8">
                 <Button 

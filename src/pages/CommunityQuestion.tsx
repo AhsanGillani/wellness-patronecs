@@ -30,6 +30,16 @@ const CommunityQuestion = () => {
   const { data: relatedList = [] } = useQuestions(q?.topic?.id);
   const { data: answers = [], isLoading: answersLoading, error: answersError, refetch } = useAnswers(id);
 
+  // Increment views on open
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      try {
+        await supabase.rpc('increment_question_views', { qid: id });
+      } catch {}
+    })();
+  }, [id]);
+
   // Fetch current user profile
   useEffect(() => {
     const fetchCurrentUser = async () => {

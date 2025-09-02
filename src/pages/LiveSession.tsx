@@ -1,11 +1,15 @@
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
-import { Video, Mic, MicOff, VideoOff, PhoneOff, Users, Send, Paperclip, Smile, Star, X } from "lucide-react";
+import { Video, Mic, MicOff, VideoOff, PhoneOff, Users, Send, Paperclip, Smile, Star, X, MonitorUp, MonitorX, Settings, Maximize2, Minimize2, MessageSquare, UsersRound } from "lucide-react";
 import { addRating } from "@/lib/ratings";
 import { addFeedback } from "@/lib/feedback";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAgora } from "@/hooks/useAgora";
+import { fetchAgoraToken } from "@/lib/agora";
+import { supabase } from "@/integrations/supabase/client";
+import { simpleSupabase } from "@/lib/simple-supabase";
 
 const LiveSession = () => {
   const { id } = useParams();
@@ -15,6 +19,381 @@ const LiveSession = () => {
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
+  // Agora wiring
+  const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID as string;
+  const channel = `appt_${id}`; // use appointment id as channel name
+  const { joined, remoteUsers, join, leave, muteMic, muteCam, localVideoTrackRef, listCameras, listMicrophones, switchCamera, switchMic, startScreenShare, stopScreenShare, sharing, screenVideoTrackRef } = useAgora(AGORA_APP_ID);
+  const localVideoRef = useRef<HTMLDivElement | null>(null);
+  const remoteVideoRef = useRef<HTMLDivElement | null>(null);
+  const videoContainerRef = useRef<HTMLDivElement | null>(null);
+  const [devices, setDevices] = useState<{ cams: MediaDeviceInfo[]; mics: MediaDeviceInfo[] }>({ cams: [], mics: [] });
+  const [selectedCam, setSelectedCam] = useState<string | undefined>(undefined);
+  const [selectedMic, setSelectedMic] = useState<string | undefined>(undefined);
+  const [settingsOpen, setSettingsOpen] = useState(true);
+  const [sessionTimer, setSessionTimer] = useState<number>(0);
+  const timerRef = useRef<number | null>(null);
+  const [connecting, setConnecting] = useState<boolean>(false);
+  const [connectError, setConnectError] = useState<string>("");
+  const [waitingNotice, setWaitingNotice] = useState<string | null>(null);
+  const [joiningDots, setJoiningDots] = useState<number>(1);
+  const applySettings = async () => {
+    try {
+      if (selectedCam) await switchCamera(selectedCam);
+      if (selectedMic) await switchMic(selectedMic);
+    } finally {
+      setSettingsOpen(false);
+    }
+  };
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [serviceName, setServiceName] = useState<string | null>(null);
+  const [serviceDurationSec, setServiceDurationSec] = useState<number | null>(null);
+  const [showEndingSoon, setShowEndingSoon] = useState<boolean>(false);
+  const [endingWarned, setEndingWarned] = useState<boolean>(false);
+  const endingHandledRef = useRef<boolean>(false);
+  const remoteEverJoinedRef = useRef<boolean>(false);
+  const [endMessage, setEndMessage] = useState<string>("");
+  const toggleFullscreen = async () => {
+    try {
+      if (!isFullscreen) {
+        await videoContainerRef.current?.requestFullscreen?.();
+      } else {
+        await document.exitFullscreen?.();
+      }
+    } catch {}
+  };
+  useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    return () => document.removeEventListener('fullscreenchange', handler);
+  }, []);
+  const [localPrimary, setLocalPrimary] = useState<boolean>(false); // click-to-swap big/small
+  
+  const [participantsOpen, setParticipantsOpen] = useState<boolean>(false);
+  const [chatOpen, setChatOpen] = useState<boolean>(false);
+
+  // Deterministic mapping from profile.id (uuid) -> Agora numeric uid (stable)
+  const computeAgoraUid = (profileId: string): number => {
+    let hash = 0;
+    for (let i = 0; i < profileId.length; i++) {
+      hash = (hash * 31 + profileId.charCodeAt(i)) | 0;
+    }
+    const positive = (hash >>> 0) % 2147483647;
+    return positive === 0 ? 1 : positive;
+  };
+
+  // Map of Agora uid (string) -> display info
+  const [uidToDisplay, setUidToDisplay] = useState<Record<string, { name: string; role?: string; avatar_url?: string }>>({});
+  const [myAgoraUid, setMyAgoraUid] = useState<number | null>(null);
+
+  const getRemoteDisplayName = (): string => {
+    const first = remoteUsers[0];
+    if (!first) return 'Remote';
+    const info = uidToDisplay[String(first.uid)];
+    return info?.name || `User ${String(first.uid)}`;
+  };
+
+  useEffect(() => {
+    (async () => {
+      // Load available devices for pre-join selection
+      const cams = await listCameras();
+      const mics = await listMicrophones();
+      setDevices({ cams, mics });
+      setSelectedCam(cams[0]?.deviceId);
+      setSelectedMic(mics[0]?.deviceId);
+    })();
+    return () => {
+      leave();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [AGORA_APP_ID, channel]);
+
+  // Gate access: only the booking patient can join; if invalid, show 404
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!id) return;
+        const { data, error } = await supabase
+          .from('appointments')
+          .select('patient_profile_id, date, start_time, appointment_status, service_id, services:services!appointments_service_id_fkey(name,duration_min, professionals:professionals!services_professional_id_fkey(profile_id))')
+          .eq('id', Number(id))
+          .maybeSingle();
+        if (!error && data?.services?.name) {
+          setServiceName(data.services.name as string);
+        }
+        // Access control (strict): only the booking patient may join
+        const bookingPatientId = (data as any)?.patient_profile_id as string | undefined;
+        const me = profile?.id;
+        if (!me || !bookingPatientId || me !== bookingPatientId) {
+          navigate(`/404?message=${encodeURIComponent("Sorry, you don't have any appointments. Please book one first.")}`, { replace: true });
+          return;
+        }
+        const durMin = (data?.services as any)?.duration_min;
+        if (typeof durMin === 'number' && durMin > 0) {
+          setServiceDurationSec(Math.floor(durMin * 60));
+        }
+        // If appointment already past its window and still scheduled -> mark no_show
+        try {
+          const apptStatus = data?.appointment_status as string | undefined;
+          const dateStr = data?.date as string | undefined;
+          const startStr = data?.start_time as string | undefined;
+          if (apptStatus === 'scheduled' && dateStr && startStr && typeof durMin === 'number') {
+            const [h, m] = (startStr || '00:00').split(':').map((s: string) => parseInt(s, 10));
+            const [Y, M, D] = dateStr.split('-').map((s: string) => parseInt(s, 10));
+            const start = new Date(Y, (M - 1), D, h, m, 0, 0);
+            const end = new Date(start.getTime() + durMin * 60 * 1000);
+            if (Date.now() > end.getTime()) {
+              await (simpleSupabase as any).from('appointments').update({ appointment_status: 'no_show' }).eq('id', Number(id));
+            }
+          }
+        } catch {}
+      } catch {}
+    })();
+  }, [id]);
+
+  // Enforce auto-end based on service duration and show 2-minute warning
+  useEffect(() => {
+    if (!serviceDurationSec || sessionEnded) return;
+    const remaining = serviceDurationSec - sessionTimer;
+    if (!endingWarned && remaining <= 120 && remaining > 0) {
+      setShowEndingSoon(true);
+      setEndingWarned(true);
+      window.setTimeout(() => setShowEndingSoon(false), 6000);
+    }
+    if (remaining <= 0 && !endingHandledRef.current) {
+      endingHandledRef.current = true;
+      (async () => {
+        try {
+          if (id) {
+            const newStatus = remoteEverJoinedRef.current ? 'completed' : 'no_show';
+            await (simpleSupabase as any)
+              .from('appointments')
+              .update({ appointment_status: newStatus })
+              .eq('id', Number(id));
+          }
+        } finally {
+          handleLeave();
+        }
+      })();
+    }
+  }, [sessionTimer, serviceDurationSec, sessionEnded]);
+
+  // Track if we ever saw a remote participant in this session
+  useEffect(() => {
+    if (remoteUsers.length > 0) remoteEverJoinedRef.current = true;
+  }, [remoteUsers.length]);
+
+  // Auto mark no-show after 10 minutes if only one participant
+  useEffect(() => {
+    if (sessionEnded) return;
+    if (!joined) return;
+    const hasRemote = remoteUsers.length > 0;
+    if (hasRemote) return;
+    const timeout = window.setTimeout(async () => {
+      let endMsg: string = 'Session ended due to the other participant not joining in time.';
+      try {
+        if (!id) return;
+        // Mark appointment as no_show
+        await (simpleSupabase as any)
+          .from('appointments')
+          .update({ appointment_status: 'no_show' })
+          .eq('id', Number(id));
+        // Notify the other participant (both roles for safety)
+        const appt = await (simpleSupabase as any)
+          .from('appointments')
+          .select(`patient_profile_id, services:services!appointments_service_id_fkey(professionals:professionals!services_professional_id_fkey(profile_id), name)`) 
+          .eq('id', Number(id))
+          .maybeSingle();
+        const patientProfileId = appt?.data?.patient_profile_id as string | null;
+        const professionalProfileId = appt?.data?.services?.professionals?.profile_id as string | null;
+        const svcName = appt?.data?.services?.name as string | null;
+        const title = 'Appointment marked no-show';
+        const currentProfileId = profile?.id;
+        const presentIsPatient = currentProfileId && patientProfileId && currentProfileId === patientProfileId;
+        if (presentIsPatient === true) endMsg = 'Session ended: the doctor did not join in time.';
+        if (presentIsPatient === false) endMsg = 'Session ended: the patient did not join in time.';
+        // Patient notification
+        if (patientProfileId) {
+          const bodyForPatient = presentIsPatient
+            ? `The doctor didn't join your ${svcName || 'appointment'} in time.`
+            : `You didn't join your ${svcName || 'appointment'} in time.`;
+          await (simpleSupabase as any)
+            .from('notifications')
+            .insert({ recipient_profile_id: patientProfileId, recipient_role: null, title, body: bodyForPatient, link_url: '/profile?section=bookings&filter=no_show', data: { type: 'no_show', appointmentId: id } });
+        }
+        // Professional notification
+        if (professionalProfileId) {
+          const bodyForDoctor = presentIsPatient === true
+            ? `You didn't join your ${svcName || 'appointment'} in time.`
+            : `The patient didn't join your ${svcName || 'appointment'} in time.`;
+          await (simpleSupabase as any)
+            .from('notifications')
+            .insert({ recipient_profile_id: professionalProfileId, recipient_role: null, title, body: bodyForDoctor, link_url: '/doctor-dashboard?tab=appointments&sub=completed', data: { type: 'no_show', appointmentId: id } });
+        }
+      } finally {
+        setEndMessage(endMsg);
+        handleLeave();
+      }
+    }, 10 * 60 * 1000);
+    return () => clearTimeout(timeout);
+  }, [joined, remoteUsers.length, sessionEnded, id, profile?.id]);
+
+  // Keep videos in sync; supports click-to-swap big/small containers
+  useEffect(() => {
+    const big = remoteVideoRef.current;    // main (large) container
+    const small = localVideoRef.current;   // small overlay container
+    if (!big || !small) return;
+
+    const getLabel = (track: any): string | null => {
+      try {
+        if (!track) return null;
+        const mediaTrack = track.getMediaStreamTrack?.();
+        if (mediaTrack && typeof mediaTrack.label === 'string') return mediaTrack.label;
+        const label = track.getTrackLabel?.();
+        if (typeof label === 'string') return label;
+      } catch {}
+      return null;
+    };
+
+    const remoteScreen = remoteUsers.find(u => {
+      const label = getLabel(u.videoTrack as any);
+      return !!u.videoTrack && typeof label === 'string' && label.toLowerCase().includes('screen');
+    });
+    const remoteTrack = (remoteScreen?.videoTrack || remoteUsers[0]?.videoTrack) as any;
+    const localTrack = (sharing && screenVideoTrackRef?.current) ? screenVideoTrackRef.current as any : localVideoTrackRef.current as any;
+
+    try { big.innerHTML = ''; } catch {}
+    try { small.innerHTML = ''; } catch {}
+
+    if (localPrimary) {
+      // Show local on big, remote on small
+      if (localTrack) localTrack.play(big);
+      if (remoteTrack) remoteTrack.play(small);
+    } else {
+      // Show remote on big, local on small
+      if (remoteTrack) remoteTrack.play(big);
+      if (localTrack) localTrack.play(small);
+    }
+  }, [remoteUsers, sharing, localPrimary]);
+
+  // Waiting logic: if only one side joined for too long, notify and optionally end
+  useEffect(() => {
+    if (sessionEnded) return;
+    const hasRemote = remoteUsers.length > 0;
+    if (joined && !hasRemote) {
+      const t = window.setTimeout(() => {
+        setWaitingNotice('Waiting for the other participant to join…');
+      }, 90_000); // 1.5 minutes
+      return () => clearTimeout(t);
+    } else {
+      setWaitingNotice(null);
+    }
+  }, [joined, remoteUsers.length, sessionEnded]);
+
+  // Show animated "Joining..." while waiting for the other participant after join
+  useEffect(() => {
+    if (sessionEnded) return;
+    if (joined && remoteUsers.length === 0) {
+      const iv = window.setInterval(() => setJoiningDots((n) => (n % 3) + 1), 500);
+      return () => clearInterval(iv);
+    }
+  }, [joined, remoteUsers.length, sessionEnded]);
+  
+  const handleJoin = async () => {
+    try {
+      setConnecting(true);
+      setConnectError("");
+      if (!AGORA_APP_ID) {
+        setConnectError('Missing VITE_AGORA_APP_ID in .env');
+        setConnecting(false);
+        return;
+      }
+      if (!id) {
+        setConnectError('Missing appointment id in URL');
+        setConnecting(false);
+        return;
+      }
+      const uid = myAgoraUid ?? (profile?.id ? computeAgoraUid(String(profile.id)) : undefined);
+      const token = await fetchAgoraToken(channel, uid);
+      if (token === null) {
+        setConnectError('Token fetch failed (500/CORS). Ensure AGORA_APP_ID/AGORA_APP_CERTIFICATE secrets are set and the function returns JSON.');
+        setConnecting(false);
+        return;
+      }
+      const { localVideoTrack } = await (join(channel, token, uid) || ({} as any));
+      if (selectedCam) await switchCamera(selectedCam);
+      if (selectedMic) await switchMic(selectedMic);
+      if (localVideoTrack && localVideoRef.current) {
+        localVideoTrack.play(localVideoRef.current);
+      }
+      setSettingsOpen(false);
+      timerRef.current = window.setInterval(() => setSessionTimer((t) => t + 1), 1000) as unknown as number;
+    } catch (e: any) {
+      console.error('Join failed:', e);
+      setConnectError(e?.message || 'Failed to join session. Please check token/App ID and permissions.');
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  // Compute my Agora UID once profile is available
+  useEffect(() => {
+    if (profile?.id) {
+      setMyAgoraUid(computeAgoraUid(String(profile.id)));
+    }
+  }, [profile?.id]);
+
+  // Fetch appointment participants and build UID->display mapping
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!id) return;
+        const { data: appt, error } = await supabase
+          .from('appointments')
+          .select(`
+            id,
+            patient_profile_id,
+            services:services!appointments_service_id_fkey(
+              professional_id,
+              professionals:professionals!services_professional_id_fkey(
+                profile_id
+              )
+            )
+          `)
+          .eq('id', Number(id))
+          .single();
+        if (error || !appt) return;
+
+        const patientProfileId: string | null = appt.patient_profile_id ?? null;
+        const professionalProfileId: string | null = appt?.services?.professionals?.profile_id ?? null;
+        const ids = [patientProfileId, professionalProfileId].filter(Boolean) as string[];
+        if (ids.length === 0) return;
+
+        const { data: profs } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, role, avatar_url')
+          .in('id', ids);
+
+        const mapping: Record<string, { name: string; role?: string; avatar_url?: string }> = {};
+        (profs || []).forEach((p: any) => {
+          const uidNum = computeAgoraUid(String(p.id));
+          const uidKey = String(uidNum);
+          const fullName = [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Participant';
+          mapping[uidKey] = { name: fullName, role: p.role || undefined, avatar_url: p.avatar_url || undefined };
+        });
+        setUidToDisplay(mapping);
+      } catch (e) {
+        // best-effort
+      }
+    })();
+  }, [id]);
+
+  const handleLeave = async () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setSessionTimer(0);
+    await leave();
+    setSessionEnded(true);
+    setShowFeedbackModal(true);
+  };
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedback, setFeedback] = useState({
     rating: 0,
@@ -52,24 +431,58 @@ const LiveSession = () => {
     }
   ];
 
-  // Mock chat messages and input
-  type ChatMessage = { id: string; sender: "Doctor" | "Patient"; text: string; time: string };
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: "m1", sender: "Patient", text: "Hello doctor!", time: "09:58" },
-    { id: "m2", sender: "Doctor", text: "Hi! How are you feeling today?", time: "10:00" }
-  ]);
+  // Realtime chat via Supabase Realtime broadcast
+  type ChatMessage = { id: string; senderId: string; senderName: string; text: string; time: string };
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
-  const handleSend = () => {
+  const chatChannelRef = useRef<any>(null);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const messagesRef = useRef<Set<string>>(new Set());
+  const chatInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length]);
+
+  useEffect(() => {
+    if (chatOpen) {
+      setTimeout(() => chatInputRef.current?.focus(), 0);
+    }
+  }, [chatOpen]);
+
+  useEffect(() => {
+    if (!id) return;
+    try {
+      const ch = supabase.channel(`live_chat_${id}`);
+      chatChannelRef.current = ch;
+      ch.on('broadcast', { event: 'message' }, (payload: any) => {
+        const msg = payload?.payload as ChatMessage | undefined;
+        if (!msg || !msg.text) return;
+        // Ignore echoes of our own message (we already optimistically added)
+        if (msg.senderId && profile?.id && msg.senderId === profile.id) return;
+        // Basic de-duplication by id
+        if (messagesRef.current.has(msg.id)) return;
+        messagesRef.current.add(msg.id);
+        setMessages(prev => [...prev, msg]);
+      }).subscribe();
+    } catch {}
+    return () => { try { chatChannelRef.current?.unsubscribe(); } catch {}; chatChannelRef.current = null; };
+  }, [id, profile?.id]);
+
+  const handleSend = async () => {
     const text = draft.trim();
-    if (!text) return;
-    const next: ChatMessage = {
-      id: `m${Date.now()}`,
-      sender: "Doctor",
+    if (!text || !id || !profile?.id) return;
+    const senderName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'User';
+    const msg: ChatMessage = {
+      id: `m_${Date.now()}`,
+      senderId: profile.id,
+      senderName,
       text,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-    setMessages(prev => [...prev, next]);
+    setMessages(prev => [...prev, msg]);
     setDraft("");
+    try { await chatChannelRef.current?.send({ type: 'broadcast', event: 'message', payload: msg }); } catch {}
   };
 
   const handleEndSession = () => {
@@ -141,29 +554,98 @@ const LiveSession = () => {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
-                {sessionEnded ? "Session Ended" : "Live Session"}
+                {sessionEnded ? (
+                  "Session Ended"
+                ) : (
+                  <span className="inline-flex items-center gap-2">
+                    <span>{serviceName || "Session"}</span>
+                    <span className="text-[10px] leading-4 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">Live session</span>
+                  </span>
+                )}
               </h1>
-              <p className="text-gray-600 text-sm">Appointment ID: {id}</p>
+              <p className="text-gray-600 text-sm flex items-center gap-2">
+                <span>Appointment ID: {id}</span>
+                <span className="relative inline-flex h-2.5 w-2.5" title={joined ? 'Connected' : 'Not connected'} aria-label={joined ? 'Connected' : 'Not connected'}>
+                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${joined ? 'bg-emerald-400' : 'bg-rose-400'} opacity-75`}></span>
+                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${joined ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                </span>
+              </p>
               {sessionEnded && (
                 <p className="text-amber-600 text-sm mt-1">Please provide feedback to complete your session</p>
               )}
             </div>
-            {!sessionEnded && (
-              <button onClick={() => navigate(-1)} className="text-sm text-blue-600 hover:text-blue-700">Back</button>
-            )}
+            <div className="text-sm text-gray-700">Duration: {Math.floor(sessionTimer / 60).toString().padStart(2,'0')}:{(sessionTimer % 60).toString().padStart(2,'0')}</div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Video Area */}
-            <div className="lg:col-span-3 bg-black rounded-xl overflow-hidden relative h-[420px] sm:h-[480px] lg:h-[640px] xl:h-[720px]">
-              {/* Large Patient feed centered */}
+            <div ref={videoContainerRef} className="lg:col-span-3 bg-black rounded-xl overflow-hidden relative h-[420px] sm:h-[480px] lg:h-[640px] xl:h-[720px]">
+              {/* Device Settings / Pre-join Modal */}
+              {settingsOpen && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
+                  <div className="bg-white rounded-xl w-full max-w-md mx-4 p-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-sm font-semibold text-gray-900">Device Settings</div>
+                      <button onClick={() => setSettingsOpen(false)} className="text-gray-500 hover:text-gray-700"><X className="w-5 h-5" /></button>
+                    </div>
+                    {connectError && !joined && (
+                      <div className="rounded-md border border-rose-200 bg-rose-50 text-rose-700 text-xs px-2 py-1 mb-3">{connectError}</div>
+                    )}
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Camera</label>
+                        <select value={selectedCam} onChange={(e) => setSelectedCam(e.target.value)} className="w-full rounded-md border px-2 py-1 text-sm">
+                          {devices.cams.map((d) => (
+                            <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Microphone</label>
+                        <select value={selectedMic} onChange={(e) => setSelectedMic(e.target.value)} className="w-full rounded-md border px-2 py-1 text-sm">
+                          {devices.mics.map((d) => (
+                            <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId}</option>
+                          ))}
+                        </select>
+                      </div>
+                      {!joined ? (
+                        <button onClick={handleJoin} disabled={connecting} className={`w-full mt-1 px-3 py-2 rounded-lg text-white text-sm ${connecting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
+                          {connecting ? 'Connecting…' : 'Join Session'}
+                        </button>
+                      ) : (
+                        <button onClick={applySettings} className="w-full mt-1 px-3 py-2 rounded-lg text-white text-sm bg-blue-600 hover:bg-blue-700">Apply & Close</button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Large Remote feed centered */}
               <div className="absolute inset-0 flex items-center justify-center">
-                {!cameraOff ? (
-                  <img src={patientImageUrl} alt="Patient" className="max-h-full max-w-full object-contain" />
-                ) : (
-                  <div className="text-white/80 text-sm">Camera is off</div>
-                )}
+                <div ref={remoteVideoRef} className="w-full h-full" />
               </div>
+              {/* Joining indicator when other party not yet connected */}
+              {!sessionEnded && joined && remoteUsers.length === 0 && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="flex items-center gap-2 bg-black/40 text-white text-sm px-3 py-1 rounded-full">
+                    <span className="relative inline-flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+                    </span>
+                    <span>Waiting for the other participant to join{'.'.repeat(joiningDots)}</span>
+                  </div>
+                </div>
+              )}
+              {/* Ending soon notice */}
+              {!sessionEnded && showEndingSoon && (
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-amber-500/90 text-white text-xs px-3 py-1 rounded-full shadow">
+                  Session will end in 2 minutes
+                </div>
+              )}
+              {!sessionEnded && waitingNotice && (
+                <div className="absolute top-14 left-1/2 -translate-x-1/2 bg-gray-800/80 text-white text-xs px-3 py-1 rounded-full shadow">
+                  {waitingNotice}
+                </div>
+              )}
               
               {/* Session Ended Overlay */}
               {sessionEnded && (
@@ -171,35 +653,54 @@ const LiveSession = () => {
                   <div className="text-center text-white">
                     <div className="text-4xl mb-4">📹</div>
                     <h3 className="text-xl font-semibold mb-2">Session Ended</h3>
-                    <p className="text-sm opacity-80">Please provide feedback to complete your session</p>
+                    <p className="text-sm opacity-80">{endMessage || 'Please provide feedback to complete your session'}</p>
                   </div>
                 </div>
               )}
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur rounded-lg px-3 py-1 text-white text-xs">
-                Patient
+                {localPrimary ? 'You' : getRemoteDisplayName()}
               </div>
-              {/* Small Doctor feed */}
-              <div className="absolute top-4 right-4 w-40 h-28 lg:w-56 lg:h-36 bg-white/10 backdrop-blur rounded-md overflow-hidden">
-                {!cameraOff ? (
-                  <img src={doctorImageUrl} alt="Doctor" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-white/80 text-xs">Camera off</div>
-                )}
-                <div className="absolute bottom-1 left-1 bg-white/20 rounded px-1.5 py-0.5 text-[10px] text-white">Doctor</div>
+              {/* Small overlay (click to swap) */}
+              <div className="absolute top-4 right-4 w-40 h-28 lg:w-56 lg:h-36 bg-white/10 backdrop-blur rounded-md overflow-hidden cursor-pointer"
+                   onClick={() => setLocalPrimary(prev => !prev)}
+                   title="Swap views">
+                <div ref={localVideoRef} className="w-full h-full" />
+                <div className="absolute bottom-1 left-1 bg-white/20 rounded px-1.5 py-0.5 text-[10px] text-white">{localPrimary ? getRemoteDisplayName() : 'You'}</div>
               </div>
 
               {/* Controls overlay inside player */}
               {!sessionEnded && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
                   <div className="flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 rounded-full p-2">
-                    <button onClick={() => setMuted(m => !m)} className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${muted ? 'bg-gray-600' : 'bg-blue-600'} hover:opacity-90`}>
-                      {muted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />} <span className="hidden sm:inline">{muted ? 'Unmute' : 'Mute'}</span>
+                    <button onClick={() => setSettingsOpen(true)} className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-gray-700 hover:opacity-90" title="Settings" aria-label="Settings">
+                      <Settings className="w-4 h-4" />
                     </button>
-                    <button onClick={() => setCameraOff(c => !c)} className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${cameraOff ? 'bg-gray-600' : 'bg-blue-600'} hover:opacity-90`}>
-                      {cameraOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />} <span className="hidden sm:inline">{cameraOff ? 'Start Camera' : 'Stop Camera'}</span>
+                    <button onClick={() => setChatOpen((v) => !v)} className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${chatOpen ? 'bg-blue-600' : 'bg-gray-700'} hover:opacity-90`} title={chatOpen ? 'Hide Chat' : 'Show Chat'} aria-label={chatOpen ? 'Hide Chat' : 'Show Chat'}>
+                      <MessageSquare className="w-4 h-4" />
                     </button>
-                    <button onClick={handleEndSession} className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-rose-600 hover:bg-rose-700">
-                      <PhoneOff className="w-4 h-4" /> <span className="hidden sm:inline">End Session</span>
+                    <button onClick={() => setParticipantsOpen((v) => !v)} className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${participantsOpen ? 'bg-blue-600' : 'bg-gray-700'} hover:opacity-90`} title={participantsOpen ? 'Hide Participants' : 'Show Participants'} aria-label={participantsOpen ? 'Hide Participants' : 'Show Participants'}>
+                      <UsersRound className="w-4 h-4" />
+                    </button>
+                    <button onClick={async () => { const next = !muted; setMuted(next); await muteMic(next); }} className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${muted ? 'bg-gray-600' : 'bg-blue-600'} hover:opacity-90`} title={muted ? 'Unmute' : 'Mute'} aria-label={muted ? 'Unmute' : 'Mute'}>
+                      {muted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    </button>
+                    <button onClick={async () => { const next = !cameraOff; setCameraOff(next); await muteCam(next); }} className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${cameraOff ? 'bg-gray-600' : 'bg-blue-600'} hover:opacity-90`} title={cameraOff ? 'Start Camera' : 'Stop Camera'} aria-label={cameraOff ? 'Start Camera' : 'Stop Camera'}>
+                      {cameraOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                    </button>
+                    <button onClick={toggleFullscreen} className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-gray-700 hover:opacity-90" title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'} aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}>
+                      {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                    </button>
+                    {!sharing ? (
+                      <button onClick={startScreenShare} className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-purple-600 hover:bg-purple-700" title="Share Screen" aria-label="Share Screen">
+                        <MonitorUp className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button onClick={stopScreenShare} className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-purple-600 hover:bg-purple-700" title="Stop Share" aria-label="Stop Share">
+                        <MonitorX className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button onClick={handleLeave} className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-rose-600 hover:bg-rose-700" title="End Session" aria-label="End Session">
+                      <PhoneOff className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
@@ -208,44 +709,68 @@ const LiveSession = () => {
 
             {/* Sidebar */}
             <aside className="lg:col-span-1 space-y-4">
+              {(participantsOpen || remoteUsers.length > 0) && (
               <div className="bg-white rounded-xl border p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-gray-900">Participants</h3>
-                  <span className="text-xs text-gray-500">{participants.length}</span>
+                  <span className="text-xs text-gray-500">{remoteUsers.length + 1}</span>
                 </div>
                 <ul className="space-y-3">
-                  {participants.map(p => (
-                    <li key={p.id} className="flex items-center gap-3">
-                      <div className="relative">
-                        <img src={p.avatar} alt={p.name} className="w-9 h-9 rounded-full object-cover" />
-                        {p.online && <span className="absolute -bottom-0 -right-0 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-white" />}
-                      </div>
+                  <li className="flex items-center gap-3">
+                    <div className="relative">
+                      <img src={profile?.avatar_url || doctorImageUrl} alt="You" className="w-9 h-9 rounded-full object-cover" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">You</div>
+                      <div className="text-[11px] inline-flex px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 mt-0.5">{profile?.role || 'Doctor/Patient'}</div>
+                    </div>
+                  </li>
+                  {remoteUsers.map(u => {
+                    const info = uidToDisplay[String(u.uid)];
+                    const displayName = info?.name || `User ${String(u.uid)}`;
+                    const displayRole = info?.role || 'Connected';
+                    const avatarSrc = info?.avatar_url || ((displayRole === 'professional' || displayRole === 'doctor') ? doctorImageUrl : patientImageUrl);
+                    return (
+                    <li key={String(u.uid)} className="flex items-center gap-3">
+                        <div className="relative">
+                          <img src={avatarSrc} alt={displayName} className="w-9 h-9 rounded-full object-cover" />
+                        </div>
                       <div className="min-w-0">
-                        <div className="text-sm font-medium text-gray-900 truncate">{p.name}</div>
-                        <div className="text-[11px] inline-flex px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 mt-0.5">{p.role}</div>
+                          <div className="text-sm font-medium text-gray-900 truncate">{displayName}</div>
+                          <div className="text-[11px] inline-flex px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 mt-0.5">{displayRole}</div>
                       </div>
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               </div>
+              )}
 
+              {chatOpen && (
               <div className="bg-white rounded-xl border p-4">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-gray-900">Chat</h3>
                   <Users className="w-4 h-4 text-gray-500" />
                 </div>
                 <div className="h-56 bg-gray-50 border rounded p-3 overflow-y-auto space-y-2">
-                  {messages.map(m => (
-                    <div key={m.id} className={`flex ${m.sender === 'Doctor' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${m.sender === 'Doctor' ? 'bg-blue-600 text-white' : 'bg-white border text-gray-800'}`}>
+                  {messages.map(m => {
+                    const mine = m.senderId === profile?.id;
+                    return (
+                      <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                        <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${mine ? 'bg-blue-600 text-white' : 'bg-white border text-gray-800'}`}>
+                          <div className={`mb-1 text-[11px] ${mine ? 'text-blue-100' : 'text-gray-500'}`}>
+                            <span>{mine ? 'You' : m.senderName}</span>
+                            <span className={`ml-2 ${mine ? 'text-blue-100' : 'text-gray-400'}`}>• {m.time}</span>
+                          </div>
                         <div>{m.text}</div>
-                        <div className={`mt-1 text-[10px] ${m.sender === 'Doctor' ? 'text-blue-100' : 'text-gray-500'}`}>{m.time}</div>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {messages.length === 0 && (
                     <div className="text-xs text-gray-500">No messages</div>
                   )}
+                  <div ref={messagesEndRef} />
                 </div>
                 <div className="mt-3 flex items-center gap-2">
                   <div className="flex items-center gap-2 flex-1 min-w-0 border rounded-lg px-2 py-1 bg-white">
@@ -259,6 +784,7 @@ const LiveSession = () => {
                       value={draft}
                       onChange={(e) => setDraft(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
+                      ref={chatInputRef}
                       className="flex-1 min-w-0 bg-transparent border-0 outline-none focus:ring-0 text-sm"
                       placeholder="Type a message..."
                     />
@@ -268,6 +794,7 @@ const LiveSession = () => {
                   </button>
                 </div>
               </div>
+              )}
             </aside>
           </div>
         </div>

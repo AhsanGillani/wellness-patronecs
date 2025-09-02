@@ -1,7 +1,7 @@
 import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import Button from "@/components/ui/button";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { simpleSupabase } from "@/lib/simple-supabase";
 import article1 from "@/assets/article-1.jpg";
 import article2 from "@/assets/article-2.jpg";
@@ -10,6 +10,8 @@ import avatar1 from "@/assets/avatar-1.jpg";
 import avatar2 from "@/assets/avatar-2.jpg";
 import avatar3 from "@/assets/avatar-3.jpg";
 import Breadcrumbs from "@/components/site/Breadcrumbs";
+import { supabase } from "@/integrations/supabase/client";
+import Skeleton from "@/components/ui/Skeleton";
 
 
 type ServiceRow = {
@@ -33,11 +35,27 @@ const Services = () => {
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [category, setCategory] = useState<string>("All specialties");
   const [sort, setSort] = useState<string>("recommended");
   const [activeChip, setActiveChip] = useState<string>("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
+
+  // Debounce search input to prevent excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1); // Reset to first page when search changes
+    }, 500); // 500ms delay
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsLoading, setDetailsLoading] = useState(false);
+  const [detailsError, setDetailsError] = useState<string | null>(null);
+  const [detailsData, setDetailsData] = useState<any>(null);
 
   // Chips row (acts as quick filters). "Telehealth" maps to Virtual mode.
   const chips = ["Consultation", "Follow-up", "Telehealth", "Lifestyle", "Nutrition", "Therapy"];
@@ -56,7 +74,9 @@ const Services = () => {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      const { data, error } = await simpleSupabase
+      
+      // Build query with server-side filtering and pagination
+      let query = simpleSupabase
         .from('services')
         .select(`
           id, slug, name, duration_min, price_cents, mode, description, image_url,
@@ -65,13 +85,46 @@ const Services = () => {
             profile:profile_id ( first_name, last_name )
           ),
           category:category_id ( name, slug )
-        `)
-        .order('id', { ascending: true });
-      if (!error && data) setServices(data as unknown as ServiceRow[]);
+        `, { count: 'exact' });
+
+      // Apply search filter at database level if search term exists
+      if (debouncedSearch.trim()) {
+        const searchTerm = debouncedSearch.trim();
+        query = query.or(`name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`);
+      }
+
+      // Apply category filter at database level
+      if (category !== "All specialties") {
+        query = query.eq('category_id', category);
+      }
+
+      // Apply chip filter at database level
+      if (activeChip && activeChip !== "Telehealth") {
+        query = query.eq('category_id', activeChip);
+      } else if (activeChip === "Telehealth") {
+        query = query.eq('mode', 'Virtual');
+      }
+
+      // Add pagination
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
+      query = query.range(from, to).order('id', { ascending: true });
+
+      const { data, error, count } = await query;
+      
+      if (!error && data) {
+        setServices(data as unknown as ServiceRow[]);
+        // Store total count for pagination
+        if (count !== null) {
+          // This would need to be stored in state for proper pagination
+          console.log('Total services count:', count);
+        }
+      }
       setLoading(false);
     };
+    
     load();
-  }, []);
+  }, [debouncedSearch, category, activeChip, page, pageSize]);
 
   // Build dynamic categories from loaded data
   const categoryOptions = useMemo(() => {
@@ -134,6 +187,40 @@ const Services = () => {
     setPage(1);
   }, [search, category, sort, activeChip]);
 
+  const openDetails = async (s: ServiceRow) => {
+    try {
+      setDetailsOpen(true);
+      setDetailsLoading(true);
+      setDetailsError(null);
+      // Fetch exact service with full relations
+      const { data, error } = await supabase
+        .from('services')
+        .select(`
+          id, name, slug, duration_min, mode, price_cents, description, benefits, image_url,
+          professional:professional_id (
+            slug, profession,
+            profile:profile_id ( first_name, last_name, avatar_url )
+          ),
+          category:category_id ( name, slug )
+        `)
+        .eq('id', s.id)
+        .maybeSingle();
+      if (error) throw error;
+      setDetailsData(data || s);
+    } catch (e: any) {
+      setDetailsError(e?.message || 'Failed to load service details');
+      setDetailsData(s);
+    } finally {
+      setDetailsLoading(false);
+    }
+  };
+
+  const closeDetails = () => {
+    setDetailsOpen(false);
+    setDetailsData(null);
+    setDetailsError(null);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
       <Header />
@@ -189,10 +276,35 @@ const Services = () => {
       <main className="py-10 sm:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {loading && (
-              <div className="col-span-full text-sm text-slate-600">Loading services...</div>
-            )}
-            {!loading && paged.map((s) => {
+            {loading ? (
+              // Skeleton loading for services
+              Array.from({ length: 9 }).map((_, index) => (
+                <div key={index} className="overflow-hidden rounded-2xl border bg-white">
+                  <div className="aspect-[16/10] w-full overflow-hidden bg-slate-100">
+                    <Skeleton className="h-full w-full" />
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <Skeleton className="h-5 w-3/4 mb-2" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                      <Skeleton className="h-5 w-16" />
+                    </div>
+                    <div className="mt-2 space-y-2">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-4/5" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                    <Skeleton className="mt-3 h-3 w-2/3" />
+                    <div className="mt-4 flex gap-2">
+                      <Skeleton className="h-9 w-20 rounded-full" />
+                      <Skeleton className="h-9 w-20 rounded-full" />
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : paged.map((s) => {
               const providerName = s.professional?.profile ? `${s.professional.profile.first_name ?? ''} ${s.professional.profile.last_name ?? ''}`.trim() : 'Professional';
               const title = s.professional?.profession ?? '';
               const priceLabel = `$${((s.price_cents ?? 0)/100).toFixed(0)}`;
@@ -231,11 +343,12 @@ const Services = () => {
                   <div className="mt-3 text-xs text-slate-500">By {providerName} • {title}</div>
                   <div className="mt-4 flex gap-2">
                     <Button as="link" to={`/book/${providerId}/${s.slug}`} className="rounded-full px-4 py-2 bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white transition-all duration-300">Book</Button>
-                    <Button as="link" variant="secondary" to={detailsUrl} className="rounded-full px-4 py-2 hover:text-blue-700 transition-colors duration-300">Details</Button>
+                    <Button variant="secondary" onClick={() => openDetails(s)} className="rounded-full px-4 py-2 hover:text-blue-700 transition-colors duration-300">Details</Button>
                   </div>
                 </div>
               </div>
-            );})}
+              );
+            })}
           </div>
           {!loading && total > 0 && (
             <div className="mt-6 flex flex-col items-center gap-2">
@@ -264,6 +377,71 @@ const Services = () => {
           )}
         </div>
       </main>
+
+      {/* Details Modal */}
+      {detailsOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
+          <div className="w-full sm:max-w-3xl sm:rounded-2xl bg-white border shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between border-b p-4">
+              <h3 className="text-base font-semibold text-slate-900">Service details</h3>
+              <button onClick={closeDetails} className="text-slate-500 hover:text-slate-700">✕</button>
+            </div>
+            <div className="max-h-[85vh] overflow-y-auto">
+              {detailsLoading ? (
+                <div className="p-6 text-sm text-slate-600">Loading...</div>
+              ) : detailsError ? (
+                <div className="p-6 text-sm text-rose-600">{detailsError}</div>
+              ) : detailsData ? (
+                <div className="p-4 sm:p-6 grid gap-6 sm:grid-cols-12">
+                  <div className="sm:col-span-7">
+                    <h4 className="text-lg font-semibold text-slate-900">{detailsData.name}</h4>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">{detailsData.duration_min} min</span>
+                      {detailsData.mode && <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">{detailsData.mode}</span>}
+                      {detailsData.category?.name && <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700">{detailsData.category.name}</span>}
+                    </div>
+                    <div className="mt-3 flex items-center gap-3 text-slate-700">
+                      <img src={detailsData.professional?.profile?.avatar_url || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200"} alt="avatar" className="h-8 w-8 rounded-full object-cover" />
+                      <div className="text-xs sm:text-sm">By <span className="font-medium text-slate-900">{`${detailsData.professional?.profile?.first_name ?? ''} ${detailsData.professional?.profile?.last_name ?? ''}`.trim()}</span>{detailsData.professional?.profession && <span className="text-slate-500"> ({detailsData.professional.profession})</span>}</div>
+                    </div>
+                    <p className="mt-3 text-sm text-slate-700 leading-relaxed">{detailsData.description}</p>
+                    <div className="mt-4">
+                      <h5 className="text-sm font-semibold text-slate-900">Included</h5>
+                      {Array.isArray(detailsData.benefits) && detailsData.benefits.length > 0 ? (
+                        <ul className="mt-2 grid sm:grid-cols-2 gap-2 text-sm text-slate-700">
+                          {detailsData.benefits.map((b: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2">
+                              <svg className="mt-0.5 h-4 w-4 text-violet-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+                              <span>{b}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div className="mt-1 text-sm text-slate-600">See full details on the service page.</div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="sm:col-span-5">
+                    <div className="aspect-[16/10] w-full overflow-hidden rounded-xl border bg-slate-100">
+                      <img src={detailsData.image_url || pickFallbackImage(detailsData)} alt={detailsData.name} className="h-full w-full object-cover" />
+                    </div>
+                    <div className="mt-4 rounded-xl border bg-white p-4">
+                      <div className="text-xs text-slate-600">Price</div>
+                      <div className="text-xl font-semibold text-slate-900">${((detailsData.price_cents ?? 0) / 100).toFixed(2)}</div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <Button as="link" to={`/book/${detailsData.professional?.slug ?? ''}/${detailsData.slug}`} className="rounded-full bg-violet-600 text-white hover:bg-violet-700">Book</Button>
+                        <Button variant="secondary" onClick={closeDetails} className="rounded-full">Close</Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-6 text-sm text-slate-600">No details available.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

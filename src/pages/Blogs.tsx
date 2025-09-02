@@ -4,6 +4,7 @@ import Button from "@/components/ui/button";
 import { useBlogs } from "@/hooks/useMarketplace";
 import { Link } from "react-router-dom";
 import Breadcrumbs from "@/components/site/Breadcrumbs";
+import Skeleton from "@/components/ui/Skeleton";
 
 const Blogs = () => {
   const { data: posts, isLoading: loading, error } = useBlogs();
@@ -13,9 +14,45 @@ const Blogs = () => {
       <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
         <Header />
         <main className="py-16">
-          <div className="mx-auto max-w-7xl px-4 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mx-auto"></div>
-            <p className="mt-4 text-slate-600">Loading blog posts...</p>
+          <div className="mx-auto max-w-7xl px-4">
+            <Breadcrumbs />
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8">
+              <div>
+                <Skeleton className="h-8 w-32 mb-2" />
+                <Skeleton className="h-5 w-64" />
+              </div>
+              <div className="flex gap-2">
+                <Skeleton className="h-10 w-20" />
+                <Skeleton className="h-10 w-24" />
+              </div>
+            </div>
+            
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="overflow-hidden rounded-2xl border bg-white">
+                  <div className="aspect-[16/10] w-full overflow-hidden">
+                    <Skeleton className="h-full w-full" />
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-4 w-4" />
+                      <Skeleton className="h-4 w-20" />
+                    </div>
+                    <Skeleton className="h-6 w-full mb-3" />
+                    <div className="space-y-2 mb-4">
+                      <Skeleton className="h-4 w-full" />
+                      <Skeleton className="h-4 w-4/5" />
+                      <Skeleton className="h-4 w-3/4" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-8 w-8 rounded-full" />
+                      <Skeleton className="h-4 w-24" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </main>
         <Footer />

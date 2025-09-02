@@ -57,8 +57,8 @@ const Footer = () => {
         <div className="mt-10 flex flex-col items-center justify-between gap-4 border-t pt-6 text-sm text-slate-500 sm:flex-row">
           <div>© {new Date().getFullYear()} Wellness. All rights reserved.</div>
           <div className="flex items-center gap-4">
-            <a href="#" className="hover:text-slate-700">Privacy</a>
-            <a href="#" className="hover:text-slate-700">Terms</a>
+            <a href="/privacy" className="hover:text-slate-700">Privacy</a>
+            <a href="/terms" className="hover:text-slate-700">Terms</a>
             <a href="#" className="hover:text-slate-700">Cookies</a>
           </div>
         </div>
