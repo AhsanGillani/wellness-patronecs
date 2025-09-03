@@ -2,7 +2,11 @@ import Header from "@/components/site/Header";
 import { useState, useEffect, useMemo } from "react";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+<<<<<<< HEAD
 import { useProfiles, useProfessionals, useServices, useAppointments, useProfessionalServices, useProfessionalAppointments, useEventsByStatus, useAllBlogs, useCreateNotification, useNotifications } from "@/hooks/useMarketplace";
+=======
+import { useProfiles, useProfessionals, useServices, useAppointments, useProfessionalServices, useProfessionalAppointments, useEventsByStatus, useAllBlogs } from "@/hooks/useMarketplace";
+>>>>>>> main
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import Breadcrumbs from "@/components/site/Breadcrumbs";
@@ -43,7 +47,11 @@ import {
   ResponsiveContainer
 } from "recharts";
 
+<<<<<<< HEAD
 type AdminTab = "overview" | "users" | "professionals" | "services" | "events" | "blogs" | "notifications" | "earnings" | "withdrawals" | "reports" | "settings";
+=======
+type AdminTab = "overview" | "users" | "professionals" | "services" | "events" | "blogs" | "earnings" | "withdrawals" | "reports" | "settings";
+>>>>>>> main
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
@@ -2414,6 +2422,7 @@ const AdminDashboard = () => {
     );
   };
 
+<<<<<<< HEAD
   // Notifications tab (as a component to keep hook order stable)
   const NotificationsTab = () => {
     const { data: notifications = [], isLoading } = useNotifications();
@@ -2611,6 +2620,8 @@ const AdminDashboard = () => {
     );
   };
 
+=======
+>>>>>>> main
   const renderReports = () => (
     <div className="bg-white rounded-xl border overflow-hidden">
       <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b text-xs font-medium text-gray-500">
@@ -2839,8 +2850,11 @@ const AdminDashboard = () => {
         return renderEvents();
       case "blogs":
         return renderBlogs();
+<<<<<<< HEAD
       case "notifications":
         return <NotificationsTab />;
+=======
+>>>>>>> main
       case "earnings":
         return renderEarnings();
       case "withdrawals":
@@ -3127,10 +3141,13 @@ const AdminDashboard = () => {
                 <FileText className="w-5 h-5" />
                 <span>Blogs</span>
               </button>
+<<<<<<< HEAD
               <button onClick={() => setActiveTab("notifications")} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === "notifications" ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700" : "text-gray-700 hover:bg-gray-50"}`}>
                 <AlertTriangle className="w-5 h-5" />
                 <span>Notifications</span>
               </button>
+=======
+>>>>>>> main
               <button onClick={() => setActiveTab("earnings")} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === "earnings" ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700" : "text-gray-700 hover:bg-gray-50"}`}>
                 <CreditCard className="w-5 h-5" />
                 <span>Earnings</span>

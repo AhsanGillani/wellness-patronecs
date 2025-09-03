@@ -1,7 +1,11 @@
 import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import Button from "@/components/ui/button";
+<<<<<<< HEAD
 import { useEffect, useMemo, useState, useCallback } from "react";
+=======
+import { useEffect, useMemo, useState } from "react";
+>>>>>>> main
 import { simpleSupabase } from "@/lib/simple-supabase";
 import article1 from "@/assets/article-1.jpg";
 import article2 from "@/assets/article-2.jpg";
@@ -10,8 +14,11 @@ import avatar1 from "@/assets/avatar-1.jpg";
 import avatar2 from "@/assets/avatar-2.jpg";
 import avatar3 from "@/assets/avatar-3.jpg";
 import Breadcrumbs from "@/components/site/Breadcrumbs";
+<<<<<<< HEAD
 import { supabase } from "@/integrations/supabase/client";
 import Skeleton from "@/components/ui/Skeleton";
+=======
+>>>>>>> main
 
 
 type ServiceRow = {
@@ -35,13 +42,17 @@ const Services = () => {
   const [services, setServices] = useState<ServiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+<<<<<<< HEAD
   const [debouncedSearch, setDebouncedSearch] = useState("");
+=======
+>>>>>>> main
   const [category, setCategory] = useState<string>("All specialties");
   const [sort, setSort] = useState<string>("recommended");
   const [activeChip, setActiveChip] = useState<string>("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
 
+<<<<<<< HEAD
   // Debounce search input to prevent excessive API calls
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -57,6 +68,8 @@ const Services = () => {
   const [detailsError, setDetailsError] = useState<string | null>(null);
   const [detailsData, setDetailsData] = useState<any>(null);
 
+=======
+>>>>>>> main
   // Chips row (acts as quick filters). "Telehealth" maps to Virtual mode.
   const chips = ["Consultation", "Follow-up", "Telehealth", "Lifestyle", "Nutrition", "Therapy"];
 
@@ -221,6 +234,67 @@ const Services = () => {
     setDetailsError(null);
   };
 
+  // Build dynamic categories from loaded data
+  const categoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    services.forEach(s => { const n = s.category?.name?.trim(); if (n) set.add(n); });
+    return ["All specialties", ...Array.from(set).sort()];
+  }, [services]);
+
+  // Apply filters and sorting
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let list = services.filter((s) => {
+      // Search filter
+      const providerName = s.professional?.profile ? `${s.professional.profile.first_name ?? ''} ${s.professional.profile.last_name ?? ''}`.trim() : '';
+      const matchesSearch = q.length === 0 || [s.name, s.description ?? '', providerName, s.category?.name ?? ''].some(v => (v ?? '').toLowerCase().includes(q));
+
+      // Category select filter
+      const matchesCategory = category === "All specialties" || (s.category?.name?.toLowerCase() === category.toLowerCase());
+
+      // Chip filter
+      let matchesChip = true;
+      if (activeChip) {
+        if (activeChip === "Telehealth") {
+          matchesChip = (s.mode || '').toLowerCase() === 'virtual';
+        } else {
+          matchesChip = (s.category?.name || '').toLowerCase() === activeChip.toLowerCase();
+        }
+      }
+
+      return matchesSearch && matchesCategory && matchesChip;
+    });
+
+    // Sorting
+    switch (sort) {
+      case 'price-asc':
+        list = list.slice().sort((a, b) => (a.price_cents ?? 0) - (b.price_cents ?? 0));
+        break;
+      case 'price-desc':
+        list = list.slice().sort((a, b) => (b.price_cents ?? 0) - (a.price_cents ?? 0));
+        break;
+      case 'duration':
+        list = list.slice().sort((a, b) => (a.duration_min ?? 0) - (b.duration_min ?? 0));
+        break;
+      default:
+        // recommended: keep original ordering by id asc already applied by query
+        break;
+    }
+
+    return list;
+  }, [services, search, category, activeChip, sort]);
+
+  const total = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const startIndex = (page - 1) * pageSize;
+  const endIndex = Math.min(total, startIndex + pageSize);
+  const paged = filtered.slice(startIndex, endIndex);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, category, sort, activeChip]);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
       <Header />
@@ -276,6 +350,7 @@ const Services = () => {
       <main className="py-10 sm:py-14">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+<<<<<<< HEAD
             {loading ? (
               // Skeleton loading for services
               Array.from({ length: 9 }).map((_, index) => (
@@ -305,6 +380,12 @@ const Services = () => {
                 </div>
               ))
             ) : paged.map((s) => {
+=======
+            {loading && (
+              <div className="col-span-full text-sm text-slate-600">Loading services...</div>
+            )}
+            {!loading && paged.map((s) => {
+>>>>>>> main
               const providerName = s.professional?.profile ? `${s.professional.profile.first_name ?? ''} ${s.professional.profile.last_name ?? ''}`.trim() : 'Professional';
               const title = s.professional?.profession ?? '';
               const priceLabel = `$${((s.price_cents ?? 0)/100).toFixed(0)}`;
@@ -343,7 +424,11 @@ const Services = () => {
                   <div className="mt-3 text-xs text-slate-500">By {providerName} • {title}</div>
                   <div className="mt-4 flex gap-2">
                     <Button as="link" to={`/book/${providerId}/${s.slug}`} className="rounded-full px-4 py-2 bg-gradient-to-r from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600 text-white transition-all duration-300">Book</Button>
+<<<<<<< HEAD
                     <Button variant="secondary" onClick={() => openDetails(s)} className="rounded-full px-4 py-2 hover:text-blue-700 transition-colors duration-300">Details</Button>
+=======
+                    <Button as="link" variant="secondary" to={detailsUrl} className="rounded-full px-4 py-2 hover:text-blue-700 transition-colors duration-300">Details</Button>
+>>>>>>> main
                   </div>
                 </div>
               </div>

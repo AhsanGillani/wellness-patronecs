@@ -40,8 +40,11 @@ const ServiceDetail = () => {
   const [service, setService] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+<<<<<<< HEAD
   const [heroImageUrl, setHeroImageUrl] = useState<string | null>(null);
   const [displayProfessional, setDisplayProfessional] = useState<{ name: string; title?: string | null; avatar_url?: string | null } | null>(null);
+=======
+>>>>>>> main
 
   // Find the professional by slug (since providerId is actually the slug)
   const prof = professionals?.find((p) => p.slug === providerSlug);
@@ -133,7 +136,10 @@ const ServiceDetail = () => {
         console.log('ServiceDetail - Setting service state with:', foundService);
         setError(null);
         setService(foundService);
+<<<<<<< HEAD
         setHeroImageUrl(foundService.image_url || null);
+=======
+>>>>>>> main
         console.log('ServiceDetail - Service state set, should render service details');
       } else {
         console.log('ServiceDetail - No service found, setting error');
@@ -150,6 +156,7 @@ const ServiceDetail = () => {
     }
   }, [services, serviceSlug, providerSlug, professionals]);
 
+<<<<<<< HEAD
   // Ensure the displayed service details match the DB exactly for the opened service (trust DB over hook cache)
   useEffect(() => {
     const fetchExactService = async () => {
@@ -195,6 +202,8 @@ const ServiceDetail = () => {
     fetchExactService();
   }, [prof?.id, serviceSlug]);
 
+=======
+>>>>>>> main
   if (profLoading || servicesLoading || loading) {
     console.log('ServiceDetail - Loading states:', { profLoading, servicesLoading, loading });
     console.log('ServiceDetail - Service found but still loading:', { service, prof, error });
@@ -205,6 +214,60 @@ const ServiceDetail = () => {
           <div className="mx-auto max-w-3xl px-4 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mx-auto"></div>
             <p className="mt-2 text-slate-600">Loading service details...</p>
+<<<<<<< HEAD
+=======
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (profError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
+        <Header />
+        <main className="py-16">
+          <div className="mx-auto max-w-3xl px-4 text-center">
+            <h1 className="text-2xl font-bold text-slate-900">Error Loading Service</h1>
+            <p className="mt-2 text-slate-600">{profError}</p>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (error) {
+    console.log('ServiceDetail - Error condition triggered:', { prof: !!prof, service: !!service, error: !!error });
+    console.log('ServiceDetail - Current values:', { prof, service, error });
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
+        <Header />
+        <main className="py-16">
+          <div className="mx-auto max-w-3xl px-4 text-center">
+            <h1 className="text-2xl font-bold text-slate-900">Service not found</h1>
+            <p className="mt-2 text-slate-600">The service you are looking for does not exist.</p>
+            <Button as="link" to="/professionals" className="mt-4">Back to Professionals</Button>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!prof || !service) {
+    console.log('ServiceDetail - Error condition triggered:', { prof: !!prof, service: !!service, error: !!error });
+    console.log('ServiceDetail - Current values:', { prof, service, error });
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
+        <Header />
+        <main className="py-16">
+          <div className="mx-auto max-w-3xl px-4 text-center">
+            <h1 className="text-2xl font-bold text-slate-900">Service not found</h1>
+            <p className="mt-2 text-slate-600">The service you are looking for does not exist.</p>
+            <Button as="link" to="/professionals" className="mt-4">Back to Professionals</Button>
+>>>>>>> main
           </div>
         </main>
         <Footer />
@@ -293,6 +356,7 @@ const ServiceDetail = () => {
                   {service.mode}
                 </span>
               )}
+<<<<<<< HEAD
               <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700">
                 <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
                 {service.category?.name || 'General'}
@@ -307,6 +371,23 @@ const ServiceDetail = () => {
               <div className="text-sm">
                 By <span className="font-medium text-slate-900">{(displayProfessional?.name || prof?.name || '').replace(/^Dr\.?\s+/i, '')}</span>
                 {displayProfessional?.title && <span className="text-slate-500"> ({displayProfessional.title})</span>}
+=======
+              {service.categories?.name && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 px-2.5 py-1 text-xs font-medium text-violet-700">
+                  <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+                  {service.categories.name}
+                </span>
+              )}
+            </div>
+            <div className="mt-3 flex items-center gap-3 text-slate-700">
+              <img
+                src={prof.avatar_url || prof.image || "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=200"}
+                alt={prof.name}
+                className="h-8 w-8 rounded-full object-cover"
+              />
+              <div className="text-sm">
+                By <span className="font-medium text-slate-900">{(prof.name || '').replace(/^Dr\.?\s+/i, '')}</span> <span className="text-slate-500">({prof.title})</span>
+>>>>>>> main
               </div>
             </div>
             <p className="mt-4 text-slate-700 leading-relaxed">{service.description}</p>
@@ -332,8 +413,13 @@ const ServiceDetail = () => {
             <div className="mt-6 h-px w-full bg-slate-100"/>
           </div>
           <div className="lg:col-span-5">
+<<<<<<< HEAD
             <div className="aspect-[16/10] w-full overflow-hidden rounded-2xl border bg-slate-100 shadow-sm">
               <img src={heroImageUrl || service.image_url || pickFallbackImage(service)} alt={service.name} className="h-full w-full object-cover" />
+=======
+            <div className="aspect-[16/10] w-full overflow-hidden rounded-2xl border bg-slate-100">
+              <img src={service.image_url || pickFallbackImage(service)} alt={service.name} className="h-full w-full object-cover" />
+>>>>>>> main
             </div>
           </div>
         </div>
@@ -352,7 +438,11 @@ const ServiceDetail = () => {
                   'Time for Q&A and practical tips'
                 ].map((item, i) => (
                   <li key={i} className="flex items-start gap-2">
+<<<<<<< HEAD
                     <svg className="mt-0.5 h-4 w-4 text-emerald-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+=======
+                    <svg className="mt-0.5 h-4 w-4 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+>>>>>>> main
                     <span>{item}</span>
                   </li>
                 ))}
@@ -361,14 +451,34 @@ const ServiceDetail = () => {
 
             <div className="rounded-2xl border bg-white p-6">
               <h2 className="text-lg font-semibold text-slate-900">Included</h2>
+              {Array.isArray(service.benefits) && service.benefits.length > 0 ? (
+                <ul className="mt-3 grid sm:grid-cols-2 gap-2 text-sm text-slate-700">
+                  {service.benefits.map((b: string, i: number) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <svg className="mt-0.5 h-4 w-4 text-violet-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+                      <span>{b}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
               <ul className="mt-3 grid sm:grid-cols-2 gap-2 text-sm text-slate-700">
+<<<<<<< HEAD
                 {serviceBenefits.map((benefit: string, i: number) => (
                   <li key={i} className="flex items-start gap-2">
                     <svg className="mt-0.5 h-4 w-4 text-violet-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
                     <span>{benefit}</span>
                   </li>
                 ))}
+=======
+                  {['Appointment summary','Follow-up recommendations','Resources and handouts','Optional telehealth'].map((b, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <svg className="mt-0.5 h-4 w-4 text-violet-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 6L9 17l-5-5"/></svg>
+                      <span>{b}</span>
+                    </li>
+                  ))}
+>>>>>>> main
               </ul>
+              )}
             </div>
           </section>
 

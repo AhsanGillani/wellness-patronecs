@@ -4,12 +4,18 @@ import Button from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useNotifications, useMarkNotificationRead } from "@/hooks/useMarketplace";
 import Breadcrumbs from "@/components/site/Breadcrumbs";
+<<<<<<< HEAD
 import { useAuth } from "@/contexts/AuthContext";
+=======
+>>>>>>> main
 
 const Notifications = () => {
   const { data: items = [], isLoading } = useNotifications();
   const markRead = useMarkNotificationRead();
+<<<<<<< HEAD
   const { profile, effectiveRole } = useAuth();
+=======
+>>>>>>> main
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
@@ -17,6 +23,7 @@ const Notifications = () => {
       <main className="py-10 sm:py-14">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
           <Breadcrumbs />
+<<<<<<< HEAD
           <div className="flex items-center justify-between">
             <h1 className="text-2xl font-bold text-slate-900">Notifications</h1>
             {profile && (
@@ -28,6 +35,9 @@ const Notifications = () => {
               </div>
             )}
           </div>
+=======
+          <h1 className="text-2xl font-bold text-slate-900">Notifications</h1>
+>>>>>>> main
           {isLoading ? (
             <div className="mt-6 text-sm text-slate-600">Loading...</div>
           ) : items.length === 0 ? (
@@ -42,6 +52,7 @@ const Notifications = () => {
             </div>
           ) : (
             <div className="mt-6 space-y-3">
+<<<<<<< HEAD
               {items.map((n) => {
                 const mapLink = (raw?: string | null) => {
                   const link = raw || "";
@@ -89,11 +100,30 @@ const Notifications = () => {
                         >
                           {markRead.isPending ? 'Marking...' : 'Mark read'}
                         </Button>
+=======
+              {items.map((n) => (
+                <div key={n.id} className="rounded-xl border bg-white p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <Link to={`/notifications/${n.id}`} className="block flex-1">
+                      <div className="text-sm font-medium text-slate-900 line-clamp-1">{n.title}</div>
+                      {n.body && <div className="mt-1 text-sm text-slate-700 line-clamp-2">{n.body}</div>}
+                    </Link>
+                    <div className="flex items-center gap-2">
+                      {n.link_url && (
+                        <Button as="link" to={n.link_url} size="sm" variant="secondary">View related</Button>
+                      )}
+                      {!n.read_at && (
+                        <Button size="sm" variant="secondary" onClick={() => markRead.mutate({ id: n.id })}>Mark read</Button>
+>>>>>>> main
                       )}
                     </div>
                   </div>
                 </div>
+<<<<<<< HEAD
               );})}
+=======
+              ))}
+>>>>>>> main
             </div>
           )}
         </div>

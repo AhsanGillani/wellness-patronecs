@@ -35,7 +35,7 @@ import Privacy from "./pages/Privacy";
 // Loading wrapper component
 const AppContent = () => {
   const { loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -54,7 +54,7 @@ const AppContent = () => {
             </div>
           </div>
         </div>
-        
+
         {/* Main Content Skeleton */}
         <main className="py-8">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -64,7 +64,7 @@ const AppContent = () => {
                 <div className="h-12 w-96 bg-gray-200 rounded-lg animate-pulse mx-auto"></div>
                 <div className="h-6 w-2/3 bg-gray-200 rounded animate-pulse mx-auto"></div>
               </div>
-              
+
               {/* Cards Grid Skeleton */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {Array.from({ length: 6 }).map((_, i) => (
@@ -84,8 +84,9 @@ const AppContent = () => {
       </div>
     );
   }
-  
+
   return (
+<<<<<<< HEAD
     <>
       <ScrollToTop />
       <Routes>
@@ -130,9 +131,42 @@ const App = () => {
     <BrowserRouter>
       <AuthProvider>
         <AppContent />
-      </AuthProvider>
-    </BrowserRouter>
-  );
+=======
+    <BrowserRouter>
+          <AuthProvider>
+            <ScrollToTop />
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/community" element={<Community />} />
+              <Route path="/community/q/:id" element={<CommunityQuestion />} />
+              <Route path="/blogs" element={<Blogs />} />
+              <Route path="/blogs/:slug" element={<BlogDetail />} />
+              <Route path="/professionals" element={<Professionals />} />
+              <Route path="/professional/:slug" element={<Professional />} />
+              <Route path="/services" element={<Services />} />
+              <Route path="/services/:providerSlug/:serviceSlug" element={<ServiceDetail />} />
+              <Route path="/events" element={<Events />} />
+              <Route path="/events/:id" element={<EventDetail />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/book/:providerSlug/:serviceSlug" element={<BookAppointment />} />
+              <Route path="/book/:id" element={<BookAppointment />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/auth" element={<Navigate to="/login" replace />} />
+              <Route path="/signup" element={<SignupSelection />} />
+              <Route path="/signup/patient" element={<PatientSignup />} />
+              <Route path="/signup/professional" element={<ProfessionalSignup />} />
+              <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/notifications/:id" element={<NotificationDetail />} />
+              <Route path="/live-session/:id" element={<LiveSession />} />
+              <Route path="*" element={<Home />} />
+            </Routes>
+>>>>>>> main
+          </AuthProvider>
+        </BrowserRouter>
+        );
 };
 
-export default App;
+        export default App;

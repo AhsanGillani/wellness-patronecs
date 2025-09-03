@@ -7,6 +7,7 @@ import { useLocation } from "react-router-dom";
 import { Upload } from "lucide-react";
 import { parse, isToday, differenceInMinutes, addMinutes, format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
+<<<<<<< HEAD
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 
@@ -14,6 +15,37 @@ const PatientTabs = () => {
 	const { profile } = useAuth();
 	const { toast } = useToast();
 	const now = new Date();
+=======
+
+const PatientTabs = () => {
+	const { profile } = useAuth();
+	// Pull from the same upcomingAppointments mock as Overview for consistency
+	const now = new Date();
+	const todayLabel = format(now, "MMM dd, yyyy");
+	const timeNowLabel = format(now, "h:mm a");
+	const laterTodayLabel = format(addMinutes(now, 30), "h:mm a");
+	const upcomingAppointments = [
+		{ 
+			id: 1, 
+			title: profile ? `${profile.first_name} ${profile.last_name}` : "Professional", 
+			subtitle: profile?.specialization || profile?.profession || "Professional", 
+			date: todayLabel, 
+			time: timeNowLabel, 
+			status: "Confirmed", 
+			isLive: true 
+		},
+		{ 
+			id: 2, 
+			title: profile ? `${profile.first_name} ${profile.last_name}` : "Professional", 
+			subtitle: profile?.specialization || profile?.profession || "Professional", 
+			date: todayLabel, 
+			time: laterTodayLabel, 
+			status: "Confirmed", 
+			isLive: false 
+		},
+	];
+	const [activeTab, setActiveTab] = useState<"appointments" | "visits">("appointments");
+>>>>>>> main
 	const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
 	const [rescheduleReason, setRescheduleReason] = useState("");
 	const [rescheduleTime, setRescheduleTime] = useState("");
@@ -195,6 +227,7 @@ const PatientTabs = () => {
 							))}
 						</div>
 					</div>
+<<<<<<< HEAD
 					{loading ? (
 						<div className="rounded-xl border p-4 text-sm text-slate-600">Loading...</div>
 					) : error ? (
@@ -270,6 +303,26 @@ const PatientTabs = () => {
 										</div>
 									</div>
 								))}
+=======
+				)}
+
+				{activeTab === "visits" && (
+					<div className="space-y-3">
+						<div className="text-sm text-slate-600">Your attended appointments</div>
+						<div className="rounded-xl border p-4 space-y-2">
+							<div className="flex items-center justify-between">
+								<div>
+									<div className="font-medium text-slate-900">
+										{profile ? `${profile.first_name} ${profile.last_name}` : "Professional"}
+									</div>
+									<div className="text-xs text-slate-600">Mar 15, 2025 • 02:00 PM</div>
+								</div>
+								<div className="text-xs text-slate-600">Completed</div>
+							</div>
+							<div className="text-sm text-slate-700">
+								{profile?.specialization || profile?.profession || "Professional"} Follow-up • Video call
+							</div>
+>>>>>>> main
 						</div>
 					) : (
 						<div className="rounded-2xl border border-dashed bg-slate-50 p-8 text-center">
@@ -461,7 +514,10 @@ const PatientTabs = () => {
 
 const Profile = () => {
 	const { profile } = useAuth();
+<<<<<<< HEAD
 	const { toast } = useToast();
+=======
+>>>>>>> main
 	const [activeSection, setActiveSection] = useState<"overview" | "bookings" | "account">("overview");
 	const profileLocation = useLocation();
 
@@ -517,6 +573,7 @@ const Profile = () => {
 
 	const now = new Date();
 
+<<<<<<< HEAD
 	useEffect(() => {
 		const fetchToday = async () => {
 			try {
@@ -555,6 +612,28 @@ const Profile = () => {
 		};
 		fetchToday();
 	}, [profile?.id]);
+=======
+	const upcomingAppointments = [
+		{ 
+			id: 1, 
+			title: profile ? `${profile.first_name} ${profile.last_name}` : "Professional", 
+			subtitle: profile?.specialization || profile?.profession || "Professional", 
+			date: todayLabel, 
+			time: timeNowLabel, 
+			status: "Confirmed", 
+			isLive: true 
+		},
+		{ 
+			id: 2, 
+			title: profile ? `${profile.first_name} ${profile.last_name}` : "Professional", 
+			subtitle: profile?.specialization || profile?.profession || "Professional", 
+			date: todayLabel, 
+			time: laterTodayLabel, 
+			status: "Confirmed", 
+			isLive: false 
+		},
+	];
+>>>>>>> main
 
 	// Listen for reschedule request rejections and notify/show toast
 	useEffect(() => {

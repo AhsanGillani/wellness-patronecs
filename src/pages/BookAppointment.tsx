@@ -4,8 +4,11 @@ import Footer from "@/components/site/Footer";
 import Button from "@/components/ui/button";
 import { useWishlistStatus, useWishlistSubscribe, useWishlistUnsubscribe } from "@/hooks/useMarketplace";
 import { useProfessionals, useProfessionalServices } from "@/hooks/useDatabase";
+<<<<<<< HEAD
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+=======
+>>>>>>> main
 import { simpleSupabase } from "@/lib/simple-supabase";
 import { useEffect, useMemo, useState } from "react";
 
@@ -37,6 +40,7 @@ const daysInMonth = (year: number, monthIndex0: number) => {
   }
   return days;
 };
+<<<<<<< HEAD
 
 // Weekday normalization helpers
 const weekdayShorts = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"] as const;
@@ -66,6 +70,8 @@ const toDaySet = (days: any): Set<string> => {
   }
   return set;
 };
+=======
+>>>>>>> main
 
 const appointmentTypes = [
   { key: "consult", label: "Initial consultation (30 min)" },
@@ -75,7 +81,10 @@ const appointmentTypes = [
 
 const BookAppointment = () => {
   const params = useParams();
+<<<<<<< HEAD
   const navigate = useNavigate();
+=======
+>>>>>>> main
   const professionalId = params.id; // legacy route: /book/:id
   const providerSlug = (params as any).providerSlug as string | undefined; // new route: /book/:providerSlug/:serviceSlug
   const serviceSlug = (params as any).serviceSlug as string | undefined;
@@ -125,6 +134,7 @@ const BookAppointment = () => {
 
   // Calendar + availability state
   const now = new Date();
+<<<<<<< HEAD
   // Weekly availability window
   const windowDays = 7;
   const [availableByDate, setAvailableByDate] = useState<Record<string, string[]>>({});
@@ -143,6 +153,12 @@ const BookAppointment = () => {
   const [currentWeekStart, setCurrentWeekStart] = useState<string>(formatYmd(startOfWeek(now)));
   const todayWeekStart = formatYmd(startOfWeek(now));
   const todayYmd = formatYmd(new Date());
+=======
+  // Rolling availability window (days ahead to show)
+  const windowDays = 30;
+  const [availableByDate, setAvailableByDate] = useState<Record<string, string[]>>({});
+  const [loadingAvail, setLoadingAvail] = useState<boolean>(false);
+>>>>>>> main
 
   // Build available slots for a specific date using service availability json
   const buildServiceDaySlots = (service: any, ymd: string): string[] => {
@@ -150,6 +166,7 @@ const BookAppointment = () => {
     if (!availability) return [];
     const duration = Number(service?.duration_min) || 30;
     const weekday = new Date(ymd).getDay(); // 0=Sun
+<<<<<<< HEAD
     const weekdayName = weekdayShorts[weekday];
     const daySet = toDaySet(availability.days);
 
@@ -161,6 +178,14 @@ const BookAppointment = () => {
       }
       for (const w of (windows as Array<{ start: string; end: string }>) || []) {
         if (!w?.start || !w?.end || !w.start.trim() || !w.end.trim()) continue;
+=======
+    const weekdayNames = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    const weekdayName = weekdayNames[weekday];
+
+    const makeSlots = (windows: Array<{ start: string; end: string }>) => {
+      const slots: string[] = [];
+      for (const w of windows || []) {
+>>>>>>> main
         let cursor = w.start;
         while (compareTime(addMinutes(cursor, duration), w.end) <= 0) {
           slots.push(cursor);
@@ -170,6 +195,7 @@ const BookAppointment = () => {
       return slots;
     };
 
+<<<<<<< HEAD
     if (availability.scheduleType === "custom" && availability.customSchedules) {
       // Accept either exact date keys or weekday-name keys
       const custom = availability.customSchedules[ymd]
@@ -189,6 +215,13 @@ const BookAppointment = () => {
     if (availability.scheduleType === 'custom' && daySet.has(weekdayName)) {
       const weekly = availability.timeSlots || availability.slots || [];
       return makeSlots(weekly);
+=======
+    if (availability.scheduleType === "custom" && availability.customSchedules && availability.customSchedules[ymd]) {
+      return makeSlots(availability.customSchedules[ymd].timeSlots || []);
+    }
+    if (availability.days && availability.days.includes(weekdayName)) {
+      return makeSlots(availability.timeSlots || []);
+>>>>>>> main
     }
     return [];
   };
@@ -198,12 +231,18 @@ const BookAppointment = () => {
     if (!prof) return;
     setLoadingAvail(true);
     try {
+<<<<<<< HEAD
       const start = new Date(currentWeekStart);
       const end = new Date(start);
+=======
+      const start = new Date(now);
+      const end = new Date(now);
+>>>>>>> main
       end.setDate(end.getDate() + windowDays - 1);
       const ymdStart = formatYmd(start);
       const ymdEnd = formatYmd(end);
 
+<<<<<<< HEAD
       // Use service availability JSONB if available, otherwise fallback to availability_slots
       const base: Record<string, string[]> = {};
       console.log('BookAppointment - Loading availability for professional:', prof.id, 'from', ymdStart, 'to', ymdEnd);
@@ -269,6 +308,17 @@ const BookAppointment = () => {
       } else {
         // Fallback to availability_slots table
         console.log('BookAppointment - Falling back to availability_slots table');
+=======
+      // 1) Start from service availability json if we are in a service flow and it exists
+      const base: Record<string, string[]> = {};
+      if (isServiceFlow && selectedService) {
+        const rollingDays: Date[] = [];
+        const cursor = new Date(start);
+        while (cursor <= end) { rollingDays.push(new Date(cursor)); cursor.setDate(cursor.getDate() + 1); }
+        for (const d of rollingDays) { const ymd = formatYmd(d); base[ymd] = buildServiceDaySlots(selectedService, ymd); }
+      } else {
+        // 2) Fallback to raw availability_slots if available (per professional), not booked
+>>>>>>> main
         const { data: slots, error: slotsErr } = await simpleSupabase
           .from("availability_slots")
           .select("id,start_time,end_time,is_booked")
@@ -276,11 +326,18 @@ const BookAppointment = () => {
           .eq("is_booked", false)
           .gte("start_time", `${ymdStart}T00:00:00+00:00`)
           .lte("start_time", `${ymdEnd}T23:59:59+00:00`);
+<<<<<<< HEAD
         console.log('BookAppointment - Availability slots query result:', { slots, error: slotsErr, count: slots?.length });
         if (!slotsErr && Array.isArray(slots)) {
           const rollingDays: Date[] = [];
           const cur = new Date(start);
           while (cur <= end) { rollingDays.push(new Date(cur)); cur.setDate(cur.getDate() + 1); }
+=======
+        if (!slotsErr && Array.isArray(slots)) {
+          const rollingDays: Date[] = [];
+          const cursor = new Date(start);
+          while (cursor <= end) { rollingDays.push(new Date(cursor)); cursor.setDate(cursor.getDate() + 1); }
+>>>>>>> main
           for (const d of rollingDays) { const ymd = formatYmd(d); base[ymd] = []; }
           for (const s of slots as any[]) {
             const dt = new Date(s.start_time);
@@ -293,6 +350,7 @@ const BookAppointment = () => {
           for (const k of Object.keys(base)) base[k] = (base[k] || []).sort(compareTime);
         }
       }
+<<<<<<< HEAD
       
       console.log('BookAppointment - Built availability base:', base);
 
@@ -311,13 +369,21 @@ const BookAppointment = () => {
       // Remove times that are already booked via appointments table (service-specific only)
       if (isServiceFlow && selectedService) {
         console.log('BookAppointment - Filtering out booked appointments for service:', selectedService.id);
+=======
+
+      // Remove times that are already booked via appointments table (service-specific only)
+      if (isServiceFlow && selectedService) {
+>>>>>>> main
         const { data: appts, error: apptErr } = await simpleSupabase
           .from("appointments")
           .select("date,start_time,end_time")
           .eq("service_id", selectedService.id)
           .gte("date", ymdStart)
           .lte("date", ymdEnd);
+<<<<<<< HEAD
         console.log('BookAppointment - Booked appointments:', { appts, error: apptErr, count: appts?.length });
+=======
+>>>>>>> main
         if (!apptErr && Array.isArray(appts)) {
           const bookedByDate: Record<string, Set<string>> = {};
           for (const a of appts as any[]) {
@@ -331,6 +397,7 @@ const BookAppointment = () => {
         }
       }
 
+<<<<<<< HEAD
       // Deduplicate and sort slots per day to avoid duplicate keys and UI warnings
       for (const k of Object.keys(base)) {
         const list = base[k] || [];
@@ -339,6 +406,9 @@ const BookAppointment = () => {
       console.log('BookAppointment - Final availability after filtering:', base);
       setAvailableByDate(base);
       setComputedWeekStart(ymdStart);
+=======
+      setAvailableByDate(base);
+>>>>>>> main
     } finally {
       setLoadingAvail(false);
     }
@@ -346,6 +416,7 @@ const BookAppointment = () => {
 
   // Load availability when selection changes
   // eslint-disable-next-line react-hooks/exhaustive-deps
+<<<<<<< HEAD
   useEffect(() => { loadMonthAvailability(); }, [prof?.id, selectedService?.id, isServiceFlow, currentWeekStart]);
 
   // Auto-advance to next week if current week has zero slots (up to 8 weeks)
@@ -372,6 +443,9 @@ const BookAppointment = () => {
       setAutoAdvanceCount(0);
     }
   }, [availableByDate, loadingAvail, currentWeekStart, autoAdvanceCount, computedWeekStart]);
+=======
+  useEffect(() => { loadMonthAvailability(); }, [prof?.id, selectedService?.id, isServiceFlow]);
+>>>>>>> main
 
   // Auto-select first available date if none selected
   useEffect(() => {
@@ -395,9 +469,12 @@ const BookAppointment = () => {
     }
   };
 
+<<<<<<< HEAD
   const { profile: authProfile } = useAuth();
   const { toast } = useToast();
 
+=======
+>>>>>>> main
   if (loading || (isServiceFlow && servicesLoading)) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
@@ -448,6 +525,7 @@ const BookAppointment = () => {
   const priceCents = selectedService?.price_cents;
   const priceLabel = typeof priceCents === 'number' ? `$${(priceCents / 100).toFixed(2)}` : undefined;
 
+<<<<<<< HEAD
   const handleConfirmAndPay = async () => {
     if (!isServiceFlow || !selectedService?.id || !date || !slot || !authProfile?.id) {
       setBookingError('Missing required info. Please select date/time and ensure you are signed in.');
@@ -517,6 +595,8 @@ const BookAppointment = () => {
     }
   };
 
+=======
+>>>>>>> main
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
       <Header />
@@ -530,6 +610,7 @@ const BookAppointment = () => {
               <p className="mt-1 text-slate-600">with {prof.name} • {prof.title}</p>
 
               <div className="mt-6 grid gap-4 sm:grid-cols-2">
+<<<<<<< HEAD
                 {/* Days list (current week) */}
                 <div className="sm:col-span-2">
                   <div className="flex items-center justify-between">
@@ -557,6 +638,15 @@ const BookAppointment = () => {
                     {(() => {
                       const items: JSX.Element[] = [];
                       const start = new Date(currentWeekStart);
+=======
+                {/* Days list (next 30 days) - only days with available slots */}
+                <div className="sm:col-span-2">
+                  <div className="text-sm font-medium text-slate-700">Select day</div>
+                  <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {(() => {
+                      const items: JSX.Element[] = [];
+                      const start = new Date(now);
+>>>>>>> main
                       for (let i = 0; i < windowDays; i++) {
                         const d = new Date(start);
                         d.setDate(start.getDate() + i);
@@ -564,8 +654,12 @@ const BookAppointment = () => {
                         const isSelected = date === ymd;
                         const slots = (availableByDate[ymd] || []);
                         const hasSlots = slots.length > 0;
+<<<<<<< HEAD
                         const isPast = ymd < todayYmd;
                         if (!hasSlots || isPast) continue;
+=======
+                        if (!hasSlots) continue;
+>>>>>>> main
                         items.push(
                           <button
                             key={ymd}
@@ -583,6 +677,7 @@ const BookAppointment = () => {
                       return items;
                     })()}
                   </div>
+<<<<<<< HEAD
                   {(() => {
                     // If entire week has no slots, show CTA to see next week
                     const start = new Date(currentWeekStart);
@@ -606,6 +701,8 @@ const BookAppointment = () => {
                     }
                     return null;
                   })()}
+=======
+>>>>>>> main
                 </div>
                 {!isServiceFlow ? (
                 <div className="sm:col-span-2">
@@ -632,7 +729,11 @@ const BookAppointment = () => {
                 <div className="sm:col-span-2">
                   <label className="text-sm font-medium text-slate-700">Time</label>
                   <div className="mt-1 grid grid-cols-3 sm:grid-cols-6 gap-2">
+<<<<<<< HEAD
                     {(date ? (availableByDate[date] || []) : []).map((t, idx) => (
+=======
+                    {(date ? (availableByDate[date] || []) : []).map((t) => (
+>>>>>>> main
                       <button
                         key={`${date || 'no-date'}-${t}-${idx}`}
                         type="button"

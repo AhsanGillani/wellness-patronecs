@@ -1,10 +1,15 @@
 import Header from "@/components/site/Header";
 import { supabase } from "@/integrations/supabase/client";
 import { getFeedback } from "@/lib/feedback";
+<<<<<<< HEAD
 import { usePatients, useProfessionalFeedback } from "@/hooks/useDatabase";
 import { useNotifications, NotificationRow } from "@/hooks/useMarketplace";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+=======
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+>>>>>>> main
 import { useAuth } from "@/contexts/AuthContext";
 import { 
   Calendar, 
@@ -66,7 +71,11 @@ import { formatTime12h } from "@/lib/time";
 
 const DoctorDashboard = () => {
   const navigate = useNavigate();
+<<<<<<< HEAD
   const { profile, updateProfile, user } = useAuth();
+=======
+  const { profile } = useAuth();
+>>>>>>> main
   const [activeTab, setActiveTab] = useState("overview");
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
@@ -4459,6 +4468,7 @@ const DoctorDashboard = () => {
               </div>
               <div>
                 <h3 className="font-semibold text-gray-900">
+<<<<<<< HEAD
                   {profile ? `Dr. ${profile.first_name || ''} ${profile.last_name || ''}`.trim() : 'Loading...'}
                 </h3>
                 {(() => {
@@ -4482,6 +4492,13 @@ const DoctorDashboard = () => {
                     </div>
                   );
                 })()}
+=======
+                  {profile ? `Dr. ${profile.first_name} ${profile.last_name}` : 'Loading...'}
+                </h3>
+                <p className="text-sm text-gray-500">
+                  {profile?.specialization || profile?.profession || 'Professional'}
+                </p>
+>>>>>>> main
               </div>
             </div>
 

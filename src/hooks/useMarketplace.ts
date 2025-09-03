@@ -141,6 +141,7 @@ export function useProfessionals() {
   });
 }
 
+<<<<<<< HEAD
 export function useServices(limit = 50) {
   return useQuery({
     queryKey: ["services", limit],
@@ -165,6 +166,66 @@ export function useAppointments() {
       
       // First, get basic appointments data
       const { data, error } = await simpleSupabase
+=======
+export function useServices() {
+  return useQuery({
+    queryKey: ["services"],
+    queryFn: async () => {
+      console.log('Fetching services...');
+      
+      const { data, error } = await simpleSupabase
+        .from("services")
+        .select(`
+          id,
+          professional_id,
+          slug,
+          name,
+          category_id,
+          duration_min,
+          price_cents,
+          mode,
+          active,
+          description,
+          benefits,
+          image_url,
+          created_at,
+          updated_at,
+          categories:category_id(
+            id,
+            name,
+            slug
+          ),
+          professionals:professional_id(
+            id,
+            profile:profile_id(
+              id,
+              first_name,
+              last_name,
+              email,
+              avatar_url
+            )
+          )
+        `)
+        .eq("active", true)
+        .order("created_at", { ascending: false });
+      
+      console.log('Services query result:', { data, error });
+      
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+export function useAppointments() {
+  return useQuery({
+    queryKey: ["appointments"],
+    queryFn: async () => {
+      console.log('Fetching appointments...');
+      
+      // First, get basic appointments data
+      const { data, error } = await simpleSupabase
+>>>>>>> main
         .from("appointments")
         .select(`
           *,
@@ -436,6 +497,7 @@ export function useNotifications() {
   return useQuery({
     queryKey: ["notifications"],
     queryFn: async (): Promise<NotificationRow[]> => {
+<<<<<<< HEAD
       // Get current user's profile to filter notifications
       const { data: authData } = await simpleSupabase.auth.getUser();
       const currentUserId = authData?.user?.id;
@@ -462,6 +524,12 @@ export function useNotifications() {
         .or(`recipient_profile_id.eq.${profile.id},recipient_role.eq.${profile.role}`)
         .order("created_at", { ascending: false });
       
+=======
+      const { data, error } = await (simpleSupabase as any)
+        .from("notifications")
+        .select("id, recipient_profile_id, recipient_role, title, body, link_url, data, read_at, created_at")
+        .order("created_at", { ascending: false });
+>>>>>>> main
       if (error) throw error;
       return (data || []) as NotificationRow[];
     },
@@ -472,6 +540,7 @@ export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id }: { id: string }) => {
+<<<<<<< HEAD
       // Get current user's profile to ensure they can only mark their own notifications as read
       const { data: authData } = await simpleSupabase.auth.getUser();
       const currentUserId = authData?.user?.id;
@@ -498,6 +567,12 @@ export function useMarkNotificationRead() {
         .eq("id", id)
         .or(`recipient_profile_id.eq.${profile.id},recipient_role.eq.${profile.role}`);
       
+=======
+      const { error } = await (simpleSupabase as any)
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("id", id);
+>>>>>>> main
       if (error) throw error;
       return true as const;
     },
@@ -513,6 +588,7 @@ export function useNotification(id?: string) {
     enabled: Boolean(id),
     queryFn: async (): Promise<NotificationRow | null> => {
       if (!id) return null;
+<<<<<<< HEAD
       
       // Get current user's profile to filter notifications
       const { data: authData } = await simpleSupabase.auth.getUser();
@@ -534,19 +610,26 @@ export function useNotification(id?: string) {
       }
 
       // Filter notification by recipient_profile_id or recipient_role
+=======
+>>>>>>> main
       const { data, error } = await (simpleSupabase as any)
         .from("notifications")
         .select("id, recipient_profile_id, recipient_role, title, body, link_url, data, read_at, created_at")
         .eq("id", id)
+<<<<<<< HEAD
         .or(`recipient_profile_id.eq.${profile.id},recipient_role.eq.${profile.role}`)
         .maybeSingle();
       
+=======
+        .maybeSingle();
+>>>>>>> main
       if (error) throw error;
       return (data || null) as NotificationRow | null;
     },
   });
 }
 
+<<<<<<< HEAD
 // Create notification for specific user (e.g., when booking appointments)
 export function useCreateUserNotification() {
   const queryClient = useQueryClient();
@@ -742,6 +825,8 @@ export function useCreateNotification() {
   });
 }
 
+=======
+>>>>>>> main
 // Availability wishlist (notify when slots open for a service)
 export function useWishlistStatus(serviceId?: number) {
   return useQuery({
@@ -841,6 +926,7 @@ export function useWishlistUnsubscribe() {
   });
 }
 
+<<<<<<< HEAD
 
 
 
@@ -861,4 +947,6 @@ export function useWishlistUnsubscribe() {
 
 
 
+=======
+>>>>>>> main
 

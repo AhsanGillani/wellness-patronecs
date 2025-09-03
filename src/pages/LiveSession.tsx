@@ -4,12 +4,17 @@ import Footer from "@/components/site/Footer";
 import { Video, Mic, MicOff, VideoOff, PhoneOff, Users, Send, Paperclip, Smile, Star, X, MonitorUp, MonitorX, Settings, Maximize2, Minimize2, MessageSquare, UsersRound } from "lucide-react";
 import { addRating } from "@/lib/ratings";
 import { addFeedback } from "@/lib/feedback";
+<<<<<<< HEAD
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAgora } from "@/hooks/useAgora";
 import { fetchAgoraToken } from "@/lib/agora";
 import { supabase } from "@/integrations/supabase/client";
 import { simpleSupabase } from "@/lib/simple-supabase";
+=======
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+>>>>>>> main
 
 const LiveSession = () => {
   const { id } = useParams();

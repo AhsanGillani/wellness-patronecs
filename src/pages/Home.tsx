@@ -11,7 +11,10 @@ import avatar3 from "@/assets/avatar-3.jpg";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useProfessionals } from "@/hooks/useDatabase";
+<<<<<<< HEAD
 import { useAuth } from "@/contexts/AuthContext";
+=======
+>>>>>>> main
 import { useBlogs } from "@/hooks/useMarketplace";
 import Breadcrumbs from "@/components/site/Breadcrumbs";
 
@@ -55,11 +58,16 @@ const CountUp = ({ end, durationMs = 1500, prefix = "", suffix = "", compact = f
 const Home = () => {
   const { professionals: pros, loading: prosLoading } = useProfessionals();
   const { data: blogs = [], isLoading: blogsLoading } = useBlogs();
+<<<<<<< HEAD
   const { profile } = useAuth();
   const topPros = (pros || []).slice(0, 3);
   const avatars = [avatar1, avatar2, avatar3];
   const shouldShowStripeBanner = Boolean(profile && profile.role === 'professional' && !(profile as any).stripe_account_id);
 
+=======
+  const topPros = (pros || []).slice(0, 3);
+  const avatars = [avatar1, avatar2, avatar3];
+>>>>>>> main
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
       {shouldShowStripeBanner && (

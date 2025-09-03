@@ -579,6 +579,7 @@ export type Database = {
           },
         ]
       }
+<<<<<<< HEAD
       refund_requests: {
         Row: {
           id: number
@@ -634,6 +635,8 @@ export type Database = {
           }
         ]
       }
+=======
+>>>>>>> main
       professionals: {
         Row: {
           bio: string | null
@@ -1011,6 +1014,7 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+<<<<<<< HEAD
       },
       reschedule_requests: {
         Row: {
@@ -1084,6 +1088,8 @@ export type Database = {
             referencedColumns: ["id"]
           }
         ]
+=======
+>>>>>>> main
       }
     }
     Views: {
@@ -1118,6 +1124,7 @@ export type Database = {
       }
     }
     Enums: {
+<<<<<<< HEAD
       appointment_status: "scheduled" | "completed" | "cancelled" | "no_show",
       booking_status: "pending" | "confirmed" | "cancelled",
       community_status: "draft" | "published" | "archived",
@@ -1133,6 +1140,20 @@ export type Database = {
       withdraw_status: "requested" | "approved" | "transferred"
       ,
       refund_status: "pending" | "approved" | "rejected"
+=======
+      appointment_status: "scheduled" | "completed" | "cancelled" | "no_show"
+      booking_status: "pending" | "confirmed" | "cancelled"
+      community_status: "draft" | "published" | "archived"
+      event_status: "pending" | "approved" | "rejected" | "cancelled"
+      payment_status: "pending" | "paid" | "refunded" | "failed"
+      post_status: "published" | "hidden" | "deleted"
+      post_visibility: "draft" | "published"
+      service_mode: "In-person" | "Virtual"
+      user_role: "patient" | "professional" | "admin" | "doctor"
+      vote_target: "question" | "answer"
+      withdraw_method: "Bank" | "PayPal" | "Stripe"
+      withdraw_status: "requested" | "approved" | "transferred"
+>>>>>>> main
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1265,7 +1286,10 @@ export const Constants = {
       community_status: ["draft", "published", "archived"],
       event_status: ["pending", "approved", "rejected", "cancelled"],
       payment_status: ["pending", "paid", "refunded", "failed"],
+<<<<<<< HEAD
       reschedule_status: ["pending", "approved", "declined"],
+=======
+>>>>>>> main
       post_status: ["published", "hidden", "deleted"],
       post_visibility: ["draft", "published"],
       service_mode: ["In-person", "Virtual"],

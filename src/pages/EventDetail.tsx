@@ -5,14 +5,20 @@ import Button from "@/components/ui/button";
 import { useEvents } from "@/hooks/useDatabase";
 import Breadcrumbs from "@/components/site/Breadcrumbs";
 import { useState, useEffect } from "react";
+<<<<<<< HEAD
 import { formatTime12h } from "@/lib/time";
+=======
+>>>>>>> main
 
 const EventDetail = () => {
   const params = useParams();
   const eventSlug = params.id; // This is now the slug
   const { events, loading, error } = useEvents();
   const [event, setEvent] = useState<any>(null);
+<<<<<<< HEAD
   const [showCheckout, setShowCheckout] = useState(false);
+=======
+>>>>>>> main
 
   useEffect(() => {
     // Only proceed if events have finished loading AND we have a slug/ID
@@ -132,6 +138,7 @@ const EventDetail = () => {
           <aside className="lg:col-span-4 space-y-6">
             <div className="rounded-2xl border bg-white p-6">
               <h3 className="text-lg font-semibold text-slate-900">When & where</h3>
+<<<<<<< HEAD
               <div className="mt-2 text-slate-700">{new Date(event.date).toLocaleDateString()}</div>
               <div className="text-slate-700">{event.startTime ? formatTime12h(event.startTime) : 'TBD'}{event.endTime ? ` – ${formatTime12h(event.endTime)}` : ''}</div>
               <div className="mt-2 text-slate-700">{event.location}</div>
@@ -142,6 +149,15 @@ const EventDetail = () => {
                     {event.ticketPrice > 0 ? `$${event.ticketPrice}` : 'Free'}
                   </div>
                 </div>
+=======
+              <div className="mt-2 text-slate-700">{event.date}</div>
+              <div className="text-slate-700">{event.startTime || event.time}{event.endTime ? ` – ${event.endTime}` : ''}</div>
+              <div className="mt-2 text-slate-700">{event.location}</div>
+              {event.registrationUrl && (
+                <a href={event.registrationUrl} target="_blank" rel="noreferrer" className="mt-4 inline-flex items-center justify-center rounded-md bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 w-full">
+                  {typeof event.ticketPrice === 'number' && event.ticketPrice > 0 ? `Buy ticket $${event.ticketPrice}` : 'Register'}
+                </a>
+>>>>>>> main
               )}
               <button
                 onClick={() => setShowCheckout(true)}
