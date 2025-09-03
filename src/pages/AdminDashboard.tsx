@@ -2,7 +2,11 @@ import Header from "@/components/site/Header";
 import { useState, useEffect, useMemo } from "react";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
+<<<<<<< HEAD
+import { useProfiles, useProfessionals, useServices, useAppointments, useProfessionalServices, useProfessionalAppointments, useEventsByStatus, useAllBlogs, useCreateNotification, useNotifications } from "@/hooks/useMarketplace";
+=======
 import { useProfiles, useProfessionals, useServices, useAppointments, useProfessionalServices, useProfessionalAppointments, useEventsByStatus, useAllBlogs } from "@/hooks/useMarketplace";
+>>>>>>> main
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import Breadcrumbs from "@/components/site/Breadcrumbs";
@@ -43,7 +47,11 @@ import {
   ResponsiveContainer
 } from "recharts";
 
+<<<<<<< HEAD
+type AdminTab = "overview" | "users" | "professionals" | "services" | "events" | "blogs" | "notifications" | "earnings" | "withdrawals" | "reports" | "settings";
+=======
 type AdminTab = "overview" | "users" | "professionals" | "services" | "events" | "blogs" | "earnings" | "withdrawals" | "reports" | "settings";
+>>>>>>> main
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
@@ -2414,6 +2422,206 @@ const AdminDashboard = () => {
     );
   };
 
+<<<<<<< HEAD
+  // Notifications tab (as a component to keep hook order stable)
+  const NotificationsTab = () => {
+    const { data: notifications = [], isLoading } = useNotifications();
+    const createNotification = useCreateNotification();
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [newNotification, setNewNotification] = useState({
+      recipientProfileId: '',
+      recipientRole: '',
+      title: '',
+      body: '',
+      linkUrl: ''
+    });
+
+    const handleCreateNotification = async () => {
+      try {
+        await createNotification.mutateAsync({
+          recipientProfileId: newNotification.recipientProfileId || undefined,
+          recipientRole: newNotification.recipientRole || undefined,
+          title: newNotification.title,
+          body: newNotification.body || undefined,
+          linkUrl: newNotification.linkUrl || undefined
+        });
+        setShowCreateModal(false);
+        setNewNotification({ recipientProfileId: '', recipientRole: '', title: '', body: '', linkUrl: '' });
+      } catch (error) {
+        console.error('Error creating notification:', error);
+      }
+    };
+
+    if (isLoading) return <div className="text-center py-8">Loading notifications...</div>;
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-900">System Notifications</h2>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Create Notification
+          </button>
+        </div>
+
+        <div className="bg-white rounded-xl border overflow-hidden">
+          <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b text-xs font-medium text-gray-500">
+            <div className="col-span-3">Title</div>
+            <div className="col-span-2">Recipient</div>
+            <div className="col-span-2">Type</div>
+            <div className="col-span-2">Date</div>
+            <div className="col-span-2">Status</div>
+            <div className="col-span-1">Actions</div>
+          </div>
+          
+          {notifications.length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-500">
+              No notifications found. Create your first notification!
+            </div>
+          ) : (
+            notifications.map((notification) => (
+              <div key={notification.id} className="px-6 py-4 border-b last:border-0 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                <div className="md:col-span-3">
+                  <div className="font-medium text-gray-900">{notification.title}</div>
+                  {notification.body && (
+                    <div className="text-sm text-gray-600 line-clamp-2">{notification.body}</div>
+                  )}
+                </div>
+                <div className="md:col-span-2 text-sm text-gray-700">
+                  {notification.recipient_profile_id ? 'Specific User' : notification.recipient_role || 'All'}
+                </div>
+                <div className="md:col-span-2 text-sm text-gray-700">
+                  {notification.recipient_profile_id ? 'User-specific' : 'Role-based'}
+                </div>
+                <div className="md:col-span-2 text-sm text-gray-700">
+                  {new Date(notification.created_at).toLocaleDateString()}
+                </div>
+                <div className="md:col-span-2">
+                  <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
+                    notification.read_at ? 'bg-gray-100 text-gray-800' : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {notification.read_at ? 'Read' : 'Unread'}
+                  </span>
+                </div>
+                <div className="md:col-span-1">
+                  {notification.link_url && (
+                    <a
+                      href={notification.link_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 text-sm"
+                    >
+                      View
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Create Notification Modal */}
+        {showCreateModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Create Notification</h3>
+                <button 
+                  onClick={() => setShowCreateModal(false)} 
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Recipient Profile ID (optional)</label>
+                    <input
+                      type="text"
+                      value={newNotification.recipientProfileId}
+                      onChange={(e) => setNewNotification(prev => ({ ...prev, recipientProfileId: e.target.value }))}
+                      placeholder="Leave empty for role-based"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Recipient Role (optional)</label>
+                    <select
+                      value={newNotification.recipientRole}
+                      onChange={(e) => setNewNotification(prev => ({ ...prev, recipientRole: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="">Select role</option>
+                      <option value="patient">Patient</option>
+                      <option value="professional">Professional</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Title *</label>
+                  <input
+                    type="text"
+                    value={newNotification.title}
+                    onChange={(e) => setNewNotification(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Notification title"
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Body (optional)</label>
+                  <textarea
+                    value={newNotification.body}
+                    onChange={(e) => setNewNotification(prev => ({ ...prev, body: e.target.value }))}
+                    placeholder="Notification message"
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Link URL (optional)</label>
+                  <input
+                    type="url"
+                    value={newNotification.linkUrl}
+                    onChange={(e) => setNewNotification(prev => ({ ...prev, linkUrl: e.target.value }))}
+                    placeholder="https://example.com"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                
+                <div className="flex justify-end gap-3 pt-4">
+                  <button
+                    onClick={() => setShowCreateModal(false)}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCreateNotification}
+                    disabled={!newNotification.title || createNotification.isPending}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {createNotification.isPending ? 'Creating...' : 'Create Notification'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+=======
+>>>>>>> main
   const renderReports = () => (
     <div className="bg-white rounded-xl border overflow-hidden">
       <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b text-xs font-medium text-gray-500">
@@ -2642,6 +2850,11 @@ const AdminDashboard = () => {
         return renderEvents();
       case "blogs":
         return renderBlogs();
+<<<<<<< HEAD
+      case "notifications":
+        return <NotificationsTab />;
+=======
+>>>>>>> main
       case "earnings":
         return renderEarnings();
       case "withdrawals":
@@ -2928,6 +3141,13 @@ const AdminDashboard = () => {
                 <FileText className="w-5 h-5" />
                 <span>Blogs</span>
               </button>
+<<<<<<< HEAD
+              <button onClick={() => setActiveTab("notifications")} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === "notifications" ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700" : "text-gray-700 hover:bg-gray-50"}`}>
+                <AlertTriangle className="w-5 h-5" />
+                <span>Notifications</span>
+              </button>
+=======
+>>>>>>> main
               <button onClick={() => setActiveTab("earnings")} className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${activeTab === "earnings" ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700" : "text-gray-700 hover:bg-gray-50"}`}>
                 <CreditCard className="w-5 h-5" />
                 <span>Earnings</span>
@@ -2961,6 +3181,8 @@ const AdminDashboard = () => {
                  activeTab === "professionals" ? "Professionals" :
                  activeTab === "services" ? "Services" :
                  activeTab === "events" ? "Events" :
+                 activeTab === "blogs" ? "Blogs" :
+                 activeTab === "notifications" ? "Notifications" :
                  activeTab === "earnings" ? "Earnings" :
                  activeTab === "withdrawals" ? "Withdraw Requests" :
                  activeTab === "reports" ? "Reports" :

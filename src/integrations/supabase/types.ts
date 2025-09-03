@@ -579,6 +579,64 @@ export type Database = {
           },
         ]
       }
+<<<<<<< HEAD
+      refund_requests: {
+        Row: {
+          id: number
+          appointment_id: number
+          patient_profile_id: string
+          professional_profile_id: string
+          reason: string | null
+          status: Database["public"]["Enums"]["refund_status"]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          appointment_id: number
+          patient_profile_id: string
+          professional_profile_id: string
+          reason?: string | null
+          status?: Database["public"]["Enums"]["refund_status"]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          appointment_id?: number
+          patient_profile_id?: string
+          professional_profile_id?: string
+          reason?: string | null
+          status?: Database["public"]["Enums"]["refund_status"]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refund_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_professional_profile_id_fkey"
+            columns: ["professional_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+=======
+>>>>>>> main
       professionals: {
         Row: {
           bio: string | null
@@ -956,6 +1014,82 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+<<<<<<< HEAD
+      },
+      reschedule_requests: {
+        Row: {
+          id: number
+          appointment_id: number
+          patient_profile_id: string
+          professional_profile_id: string
+          current_appointment_date: string
+          current_appointment_start_time: string
+          current_appointment_end_time: string
+          requested_appointment_date: string
+          requested_appointment_start_time: string
+          requested_appointment_end_time: string
+          reason: string
+          status: Database["public"]["Enums"]["reschedule_status"]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          appointment_id: number
+          patient_profile_id: string
+          professional_profile_id: string
+          current_appointment_date: string
+          current_appointment_start_time: string
+          current_appointment_end_time: string
+          requested_appointment_date: string
+          requested_appointment_start_time: string
+          requested_appointment_end_time: string
+          reason: string
+          status?: Database["public"]["Enums"]["reschedule_status"]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          appointment_id?: number
+          patient_profile_id?: string
+          professional_profile_id?: string
+          current_appointment_date?: string
+          current_appointment_start_time?: string
+          current_appointment_end_time?: string
+          requested_appointment_date?: string
+          requested_appointment_start_time?: string
+          requested_appointment_end_time?: string
+          reason?: string
+          status?: Database["public"]["Enums"]["reschedule_status"]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reschedule_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reschedule_requests_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reschedule_requests_professional_profile_id_fkey"
+            columns: ["professional_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+=======
+>>>>>>> main
       }
     }
     Views: {
@@ -990,6 +1124,23 @@ export type Database = {
       }
     }
     Enums: {
+<<<<<<< HEAD
+      appointment_status: "scheduled" | "completed" | "cancelled" | "no_show",
+      booking_status: "pending" | "confirmed" | "cancelled",
+      community_status: "draft" | "published" | "archived",
+      event_status: "pending" | "approved" | "rejected" | "cancelled",
+      payment_status: "pending" | "paid" | "refunded" | "failed",
+      reschedule_status: "pending" | "approved" | "declined",
+      post_status: "published" | "hidden" | "deleted",
+      post_visibility: "draft" | "published",
+      service_mode: "In-person" | "Virtual",
+      user_role: "patient" | "professional" | "admin" | "doctor",
+      vote_target: "question" | "answer",
+      withdraw_method: "Bank" | "PayPal" | "Stripe",
+      withdraw_status: "requested" | "approved" | "transferred"
+      ,
+      refund_status: "pending" | "approved" | "rejected"
+=======
       appointment_status: "scheduled" | "completed" | "cancelled" | "no_show"
       booking_status: "pending" | "confirmed" | "cancelled"
       community_status: "draft" | "published" | "archived"
@@ -1002,6 +1153,7 @@ export type Database = {
       vote_target: "question" | "answer"
       withdraw_method: "Bank" | "PayPal" | "Stripe"
       withdraw_status: "requested" | "approved" | "transferred"
+>>>>>>> main
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1134,6 +1286,10 @@ export const Constants = {
       community_status: ["draft", "published", "archived"],
       event_status: ["pending", "approved", "rejected", "cancelled"],
       payment_status: ["pending", "paid", "refunded", "failed"],
+<<<<<<< HEAD
+      reschedule_status: ["pending", "approved", "declined"],
+=======
+>>>>>>> main
       post_status: ["published", "hidden", "deleted"],
       post_visibility: ["draft", "published"],
       service_mode: ["In-person", "Virtual"],

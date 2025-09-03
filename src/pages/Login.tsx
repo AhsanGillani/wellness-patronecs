@@ -42,6 +42,13 @@ const Login = () => {
         setError('Invalid email or password. Please try again.');
       } else if (error.message.includes('Email not confirmed')) {
         setError('Please check your email and confirm your account before signing in.');
+<<<<<<< HEAD
+      } else if (error.message.includes('Account not found')) {
+        setError('Account not found. Please sign up first or contact support.');
+      } else if (error.message.includes('Account validation failed')) {
+        setError('Account validation failed. Please try again or contact support.');
+=======
+>>>>>>> main
       } else {
         setError(error.message || 'An error occurred during sign in.');
       }

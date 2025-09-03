@@ -11,6 +11,10 @@ import avatar3 from "@/assets/avatar-3.jpg";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useProfessionals } from "@/hooks/useDatabase";
+<<<<<<< HEAD
+import { useAuth } from "@/contexts/AuthContext";
+=======
+>>>>>>> main
 import { useBlogs } from "@/hooks/useMarketplace";
 import Breadcrumbs from "@/components/site/Breadcrumbs";
 
@@ -54,10 +58,29 @@ const CountUp = ({ end, durationMs = 1500, prefix = "", suffix = "", compact = f
 const Home = () => {
   const { professionals: pros, loading: prosLoading } = useProfessionals();
   const { data: blogs = [], isLoading: blogsLoading } = useBlogs();
+<<<<<<< HEAD
+  const { profile } = useAuth();
   const topPros = (pros || []).slice(0, 3);
   const avatars = [avatar1, avatar2, avatar3];
+  const shouldShowStripeBanner = Boolean(profile && profile.role === 'professional' && !(profile as any).stripe_account_id);
+
+=======
+  const topPros = (pros || []).slice(0, 3);
+  const avatars = [avatar1, avatar2, avatar3];
+>>>>>>> main
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
+      {shouldShowStripeBanner && (
+        <div className="bg-amber-50 border-b border-amber-200 text-amber-900">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-2 text-sm flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-200 text-amber-800 text-xs">!</span>
+              <span>Professionals: Connect your Stripe account to receive payouts.</span>
+            </div>
+            <Link to="/doctor-dashboard?tab=billing" className="underline text-amber-900 hover:text-amber-800">Connect now</Link>
+          </div>
+        </div>
+      )}
       <Header />
 
       <main>

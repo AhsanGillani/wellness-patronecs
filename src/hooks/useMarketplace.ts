@@ -141,6 +141,32 @@ export function useProfessionals() {
   });
 }
 
+<<<<<<< HEAD
+export function useServices(limit = 50) {
+  return useQuery({
+    queryKey: ["services", limit],
+    queryFn: async () => {
+      const { data, error } = await (simpleSupabase as any)
+        .from("services")
+        .select(`id, name, slug, duration_min, price_cents, mode, active, description, benefits, image_url, created_at, professional_id`)
+        .eq("active", true)
+        .order("created_at", { ascending: false })
+        .range(0, Math.max(0, limit - 1));
+      if (error) throw error;
+      return data || [];
+    },
+  });
+}
+
+export function useAppointments() {
+  return useQuery({
+    queryKey: ["appointments"],
+    queryFn: async () => {
+      console.log('Fetching appointments...');
+      
+      // First, get basic appointments data
+      const { data, error } = await simpleSupabase
+=======
 export function useServices() {
   return useQuery({
     queryKey: ["services"],
@@ -199,6 +225,7 @@ export function useAppointments() {
       
       // First, get basic appointments data
       const { data, error } = await simpleSupabase
+>>>>>>> main
         .from("appointments")
         .select(`
           *,
@@ -470,10 +497,39 @@ export function useNotifications() {
   return useQuery({
     queryKey: ["notifications"],
     queryFn: async (): Promise<NotificationRow[]> => {
+<<<<<<< HEAD
+      // Get current user's profile to filter notifications
+      const { data: authData } = await simpleSupabase.auth.getUser();
+      const currentUserId = authData?.user?.id;
+      
+      if (!currentUserId) {
+        return [];
+      }
+
+      // Get current user's profile
+      const { data: profile, error: profileError } = await simpleSupabase
+        .from("profiles")
+        .select("id, role")
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+      
+      if (profileError || !profile) {
+        return [];
+      }
+
+      // Filter notifications by recipient_profile_id or recipient_role
+      const { data, error } = await (simpleSupabase as any)
+        .from("notifications")
+        .select("id, recipient_profile_id, recipient_role, title, body, link_url, data, read_at, created_at")
+        .or(`recipient_profile_id.eq.${profile.id},recipient_role.eq.${profile.role}`)
+        .order("created_at", { ascending: false });
+      
+=======
       const { data, error } = await (simpleSupabase as any)
         .from("notifications")
         .select("id, recipient_profile_id, recipient_role, title, body, link_url, data, read_at, created_at")
         .order("created_at", { ascending: false });
+>>>>>>> main
       if (error) throw error;
       return (data || []) as NotificationRow[];
     },
@@ -484,10 +540,39 @@ export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id }: { id: string }) => {
+<<<<<<< HEAD
+      // Get current user's profile to ensure they can only mark their own notifications as read
+      const { data: authData } = await simpleSupabase.auth.getUser();
+      const currentUserId = authData?.user?.id;
+      
+      if (!currentUserId) {
+        throw new Error("User not authenticated");
+      }
+
+      // Get current user's profile
+      const { data: profile, error: profileError } = await simpleSupabase
+        .from("profiles")
+        .select("id, role")
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+      
+      if (profileError || !profile) {
+        throw new Error("Profile not found");
+      }
+
+      // Update notification only if it belongs to the current user
+      const { error } = await (simpleSupabase as any)
+        .from("notifications")
+        .update({ read_at: new Date().toISOString() })
+        .eq("id", id)
+        .or(`recipient_profile_id.eq.${profile.id},recipient_role.eq.${profile.role}`);
+      
+=======
       const { error } = await (simpleSupabase as any)
         .from("notifications")
         .update({ read_at: new Date().toISOString() })
         .eq("id", id);
+>>>>>>> main
       if (error) throw error;
       return true as const;
     },
@@ -503,17 +588,245 @@ export function useNotification(id?: string) {
     enabled: Boolean(id),
     queryFn: async (): Promise<NotificationRow | null> => {
       if (!id) return null;
+<<<<<<< HEAD
+      
+      // Get current user's profile to filter notifications
+      const { data: authData } = await simpleSupabase.auth.getUser();
+      const currentUserId = authData?.user?.id;
+      
+      if (!currentUserId) {
+        return null;
+      }
+
+      // Get current user's profile
+      const { data: profile, error: profileError } = await simpleSupabase
+        .from("profiles")
+        .select("id, role")
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+      
+      if (profileError || !profile) {
+        return null;
+      }
+
+      // Filter notification by recipient_profile_id or recipient_role
+=======
+>>>>>>> main
       const { data, error } = await (simpleSupabase as any)
         .from("notifications")
         .select("id, recipient_profile_id, recipient_role, title, body, link_url, data, read_at, created_at")
         .eq("id", id)
+<<<<<<< HEAD
+        .or(`recipient_profile_id.eq.${profile.id},recipient_role.eq.${profile.role}`)
         .maybeSingle();
+      
+=======
+        .maybeSingle();
+>>>>>>> main
       if (error) throw error;
       return (data || null) as NotificationRow | null;
     },
   });
 }
 
+<<<<<<< HEAD
+// Create notification for specific user (e.g., when booking appointments)
+export function useCreateUserNotification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ 
+      recipientProfileId, 
+      title, 
+      body, 
+      linkUrl, 
+      notificationData 
+    }: {
+      recipientProfileId: string;
+      title: string;
+      body?: string;
+      linkUrl?: string;
+      notificationData?: unknown;
+    }) => {
+      const { data: authData } = await simpleSupabase.auth.getUser();
+      const currentUserId = authData?.user?.id;
+      
+      if (!currentUserId) {
+        throw new Error("User not authenticated");
+      }
+
+      const { data, error } = await (simpleSupabase as any)
+        .from("notifications")
+        .insert({
+          recipient_profile_id: recipientProfileId,
+          recipient_role: null, // Specific to user, not role-based
+          title,
+          body,
+          link_url: linkUrl,
+          data: notificationData
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+// Utility function to create common notification types
+export const createNotificationHelpers = {
+  // When a patient books an appointment with a professional
+  appointmentBooked: async (professionalProfileId: string, patientName: string, serviceName: string, appointmentDate: string) => {
+    const { data, error } = await (simpleSupabase as any)
+      .from("notifications")
+      .insert({
+        recipient_profile_id: professionalProfileId,
+        recipient_role: null,
+        title: 'New appointment booked',
+        body: `${patientName} has booked an appointment for ${serviceName} on ${appointmentDate}`,
+        link_url: '/appointments',
+        data: { type: 'appointment_booked', patientName, serviceName, appointmentDate }
+      });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // When a professional accepts/rejects an appointment
+  appointmentStatusChanged: async (patientProfileId: string, professionalName: string, serviceName: string, status: 'accepted' | 'rejected', appointmentDate: string) => {
+    const { data, error } = await (simpleSupabase as any)
+      .from("notifications")
+      .insert({
+        recipient_profile_id: patientProfileId,
+        recipient_role: null,
+        title: `Appointment ${status}`,
+        body: `Your appointment with ${professionalName} for ${serviceName} on ${appointmentDate} has been ${status}`,
+        link_url: '/bookings',
+        data: { type: 'appointment_status_changed', professionalName, serviceName, status, appointmentDate }
+      });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // When a reschedule request is made
+  rescheduleRequested: async (professionalProfileId: string, patientName: string, serviceName: string, oldDate: string, newDate: string) => {
+    const { data, error } = await (simpleSupabase as any)
+      .from("notifications")
+      .insert({
+        recipient_profile_id: professionalProfileId,
+        recipient_role: null,
+        title: 'Reschedule request',
+        body: `${patientName} has requested to reschedule ${serviceName} from ${oldDate} to ${newDate}`,
+        link_url: '/appointments',
+        data: { type: 'reschedule_requested', patientName, serviceName, oldDate, newDate }
+      });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // When a reschedule request is approved/rejected
+  rescheduleResponse: async (patientProfileId: string, professionalName: string, serviceName: string, status: 'approved' | 'rejected', newDate?: string) => {
+    const { data, error } = await (simpleSupabase as any)
+      .from("notifications")
+      .insert({
+        recipient_profile_id: patientProfileId,
+        recipient_role: null,
+        title: `Reschedule ${status}`,
+        body: status === 'approved' 
+          ? `Your reschedule request for ${serviceName} with ${professionalName} has been approved. New date: ${newDate}`
+          : `Your reschedule request for ${serviceName} with ${professionalName} has been rejected. Please choose another time.`,
+        link_url: '/bookings',
+        data: { type: 'reschedule_response', professionalName, serviceName, status, newDate }
+      });
+    
+    if (error) throw error;
+    return data;
+  },
+
+  // System-wide notifications for all users of a specific role
+  systemNotification: async (role: 'patient' | 'professional' | 'admin', title: string, body: string, linkUrl?: string) => {
+    const { data, error } = await (simpleSupabase as any)
+      .from("notifications")
+      .insert({
+        recipient_profile_id: null,
+        recipient_role: role,
+        title,
+        body,
+        link_url: linkUrl,
+        data: { type: 'system_notification', role }
+      });
+    
+    if (error) throw error;
+    return data;
+  }
+};
+
+// Create notification (admin only)
+export function useCreateNotification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ 
+      recipientProfileId, 
+      recipientRole, 
+      title, 
+      body, 
+      linkUrl, 
+      notificationData 
+    }: {
+      recipientProfileId?: string;
+      recipientRole?: "patient" | "professional" | "admin";
+      title: string;
+      body?: string;
+      linkUrl?: string;
+      notificationData?: unknown;
+    }) => {
+      const { data: authData } = await simpleSupabase.auth.getUser();
+      const currentUserId = authData?.user?.id;
+      
+      if (!currentUserId) {
+        throw new Error("User not authenticated");
+      }
+
+      // Check if user is admin
+      const { data: profile, error: profileError } = await simpleSupabase
+        .from("profiles")
+        .select("role")
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+      
+      if (profileError || profile?.role !== 'admin') {
+        throw new Error("Only admins can create notifications");
+      }
+
+      const { data, error } = await (simpleSupabase as any)
+        .from("notifications")
+        .insert({
+          recipient_profile_id: recipientProfileId || null,
+          recipient_role: recipientRole || null,
+          title,
+          body,
+          link_url: linkUrl,
+          data: notificationData
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    },
+  });
+}
+
+=======
+>>>>>>> main
 // Availability wishlist (notify when slots open for a service)
 export function useWishlistStatus(serviceId?: number) {
   return useQuery({
@@ -613,4 +926,27 @@ export function useWishlistUnsubscribe() {
   });
 }
 
+<<<<<<< HEAD
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+=======
+>>>>>>> main
 

@@ -32,3 +32,7 @@ FOR UPDATE USING (true) WITH CHECK (true);
 -- Ensure all tables have RLS enabled but with permissive policies
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.professionals ENABLE ROW LEVEL SECURITY;
+<<<<<<< HEAD
+
+=======
+>>>>>>> main
