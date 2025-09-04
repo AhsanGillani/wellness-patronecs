@@ -1394,7 +1394,7 @@ const AdminDashboard = () => {
           : "Unknown Professional",
         date: appointment.date || "N/A",
         time: appointment.start_time || "N/A",
-        duration: service ? `${service.duration_min || 0} min` : "N/A",
+        duration: service ? `${(service as any).duration_min || 0} min` : "N/A",
         amount: Math.round((appointment.price_cents || 0) / 100),
         status: appointment.appointment_status || "scheduled",
         type: "appointment",
@@ -3592,7 +3592,7 @@ const AdminDashboard = () => {
       try {
         await createNotification.mutateAsync({
           recipientProfileId: newNotification.recipientProfileId || undefined,
-          recipientRole: newNotification.recipientRole || undefined,
+          recipientRole: (newNotification.recipientRole as any) || undefined,
           title: newNotification.title,
           body: newNotification.body || undefined,
           linkUrl: newNotification.linkUrl || undefined,
@@ -4870,13 +4870,13 @@ const AdminDashboard = () => {
                         </label>
                         <span
                           className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                            selectedService.availabilityDetails
+                             (selectedService as any).availabilityDetails
                               ?.scheduleType === "custom"
                               ? "bg-purple-100 text-purple-800"
                               : "bg-blue-100 text-blue-800"
                           }`}
                         >
-                          {selectedService.availabilityDetails?.scheduleType ===
+                          {(selectedService as any).availabilityDetails?.scheduleType ===
                           "custom"
                             ? "Customize Per Day - Different schedules for different days"
                             : "Same for All Days - Use identical time slots every day"}
@@ -4901,7 +4901,7 @@ const AdminDashboard = () => {
                             ))
                           ) : (
                             <span className="text-gray-500 text-sm">
-                              {selectedService.availabilityDetails
+                              {(selectedService as any).availabilityDetails
                                 ?.hasAvailabilityData === false
                                 ? "Availability not configured for this service"
                                 : "No specific days configured"}
@@ -4917,35 +4917,35 @@ const AdminDashboard = () => {
                         </label>
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-sm text-gray-900">
-                            {selectedService.availabilityDetails?.timeSlots ||
-                              (selectedService.availabilityDetails
+                             {(selectedService as any).availabilityDetails?.timeSlots ||
+                               ((selectedService as any).availabilityDetails
                                 ?.hasAvailabilityData === false
                                 ? "Availability not configured for this service"
                                 : "No time slots configured")}
                           </p>
-                          {selectedService.availabilityDetails
-                            ?.totalTimeSlots && (
+                           {(selectedService as any).availabilityDetails
+                             ?.totalTimeSlots && (
                             <p className="text-xs text-gray-600 mt-1">
                               Total slots:{" "}
-                              {
-                                selectedService.availabilityDetails
-                                  .totalTimeSlots
-                              }
+                               {
+                                 (selectedService as any).availabilityDetails
+                                   .totalTimeSlots
+                               }
                             </p>
                           )}
                         </div>
                       </div>
 
                       {/* Custom Schedules (if applicable) */}
-                      {selectedService.availabilityDetails?.customSchedules && (
+                      {(selectedService as any).availabilityDetails?.customSchedules && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Custom Day Schedules
                           </label>
                           <div className="space-y-2">
-                            {Object.entries(
-                              selectedService.availabilityDetails
-                                .customSchedules
+                             {Object.entries(
+                               (selectedService as any).availabilityDetails
+                                 .customSchedules
                             ).map(([day, schedule]: [string, any]) => (
                               <div
                                 key={day}

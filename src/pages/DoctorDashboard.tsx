@@ -2220,7 +2220,7 @@ const DoctorDashboard = () => {
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   Error Loading Patients
                 </h3>
-                <p className="text-gray-500">{patientsError}</p>
+                <p className="text-gray-500">{patientsError instanceof Error ? patientsError.message : "Failed to load patients"}</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -2409,7 +2409,7 @@ const DoctorDashboard = () => {
   );
 
   const renderFeedback = () => {
-    const feedbackList = doctorFeedback || ([] as any[]);
+    const feedbackList = Array.isArray(doctorFeedback) ? doctorFeedback : [];
     const average = feedbackList.length
       ? Math.round(
           (feedbackList.reduce((s, f) => s + (f.rating || 0), 0) /
@@ -2816,7 +2816,7 @@ const DoctorDashboard = () => {
           .limit(1)
           .maybeSingle();
         if (error || !data) return;
-        if (data?.verification === "rejected") setShowRejectionBanner(true);
+        if ((data as any)?.verification === "rejected") setShowRejectionBanner(true);
         else setShowRejectionBanner(false);
       } catch {}
     };
@@ -2824,7 +2824,7 @@ const DoctorDashboard = () => {
   }, [profile?.id]);
 
   // Load feedback for this professional
-  const { feedback: doctorFeedback, loading: feedbackLoading } =
+  const { data: doctorFeedback, isLoading: feedbackLoading } =
     useProfessionalFeedback(professionalId);
 
   const handleCreateEvent = async () => {
@@ -4911,7 +4911,7 @@ const DoctorDashboard = () => {
         const { data: serviceData, error: serviceError } = await supabase
           .from("services")
           .insert({
-            professional_id: professionalId,
+          professional_id: professionalId,
             slug:
               newService.name.toLowerCase().replace(/\s+/g, "-") +
               "-" +

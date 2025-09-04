@@ -287,7 +287,7 @@ const BookAppointment = () => {
           rollingDays.push(new Date(cur));
           cur.setDate(cur.getDate() + 1);
         }
-        const daySet = toDaySet(availability.days);
+        const daySet = toDaySet((availability as any)?.days || []);
         console.log(
           "BookAppointment - Normalized days set:",
           Array.from(daySet)
@@ -299,18 +299,18 @@ const BookAppointment = () => {
           const weekdayName = weekdayShorts[weekday];
 
           if (
-            availability.scheduleType === "custom" &&
-            availability.customSchedules
+            (availability as any)?.scheduleType === "custom" &&
+            (availability as any)?.customSchedules
           ) {
             // Custom schedule for specific date or weekday
             const custom =
-              availability.customSchedules[ymd] ||
-              availability.customSchedules[weekdayName] ||
-              availability.customSchedules[
+              (availability as any)?.customSchedules?.[ymd] ||
+              (availability as any)?.customSchedules?.[weekdayName] ||
+              (availability as any)?.customSchedules?.[
                 normalizeDayName(weekdayName) as any
               ];
             const timeSlots = custom
-              ? custom.timeSlots || custom.slots || []
+              ? (custom as any)?.timeSlots || (custom as any)?.slots || []
               : [];
             const duration = Number(selectedService?.duration_min) || 30;
             const slots: string[] = [];
@@ -336,14 +336,14 @@ const BookAppointment = () => {
             }
             base[ymd] = slots;
           } else if (
-            (availability.scheduleType === "same" ||
-              availability.scheduleType === "weekly" ||
-              !availability.scheduleType) &&
+            ((availability as any)?.scheduleType === "same" ||
+              (availability as any)?.scheduleType === "weekly" ||
+              !(availability as any)?.scheduleType) &&
             daySet.has(weekdayName)
           ) {
             // Regular weekly schedule
             const timeSlots =
-              availability.timeSlots || availability.slots || [];
+              (availability as any)?.timeSlots || (availability as any)?.slots || [];
             const duration = Number(selectedService?.duration_min) || 30;
             const slots: string[] = [];
             if (

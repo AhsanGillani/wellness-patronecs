@@ -100,7 +100,7 @@ const EventDetail = () => {
             <h1 className="text-2xl font-bold text-slate-900">
               Error Loading Event
             </h1>
-            <p className="mt-2 text-slate-600">{error}</p>
+            <p className="mt-2 text-slate-600">{error instanceof Error ? error.message : "Failed to load event"}</p>
           </div>
         </main>
         <Footer />
