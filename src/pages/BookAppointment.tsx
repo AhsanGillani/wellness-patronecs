@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 
 import { simpleSupabase } from "@/lib/simple-supabase";
 import { useEffect, useMemo, useState } from "react";
+import { formatTime12h } from "@/lib/time";
 
 // Helper date/time utils (no external deps)
 const toTwo = (n: number) => (n < 10 ? `0${n}` : `${n}`);
@@ -129,8 +130,9 @@ const BookAppointment = () => {
   console.log("BookAppointment - isServiceFlow:", isServiceFlow);
 
   // Load services for the professional when in service flow
+  // When booking by service slug, we need to load services using the professional's profile_id
   const { data: profServices, isLoading: servicesLoading } =
-    useProfessionalServices(prof?.id);
+    useProfessionalServices((prof as any)?.profile_id);
   const selectedService = isServiceFlow
     ? (profServices || []).find((s: any) => s.slug === serviceSlug)
     : null;
@@ -256,8 +258,18 @@ const BookAppointment = () => {
     if (!prof) return;
     setLoadingAvail(true);
     try {
-      const start = new Date(now);
-      const end = new Date(now);
+      // Build the rolling window from the currently selected week start, not always 'now'
+      const start = (() => {
+        try {
+          const [y, m, d] = String(currentWeekStart || todayWeekStart)
+            .split("-")
+            .map(Number);
+          return new Date(y, (m || 1) - 1, d || 1, 0, 0, 0, 0);
+        } catch {
+          return new Date(now);
+        }
+      })();
+      const end = new Date(start);
 
       end.setDate(end.getDate() + windowDays - 1);
       const ymdStart = formatYmd(start);
@@ -307,7 +319,7 @@ const BookAppointment = () => {
               (availability as any)?.customSchedules?.[ymd] ||
               (availability as any)?.customSchedules?.[weekdayName] ||
               (availability as any)?.customSchedules?.[
-                normalizeDayName(weekdayName) as any
+              normalizeDayName(weekdayName) as any
               ];
             const timeSlots = custom
               ? (custom as any)?.timeSlots || (custom as any)?.slots || []
@@ -343,7 +355,9 @@ const BookAppointment = () => {
           ) {
             // Regular weekly schedule
             const timeSlots =
-              (availability as any)?.timeSlots || (availability as any)?.slots || [];
+              (availability as any)?.timeSlots ||
+              (availability as any)?.slots ||
+              [];
             const duration = Number(selectedService?.duration_min) || 30;
             const slots: string[] = [];
             if (
@@ -595,7 +609,11 @@ const BookAppointment = () => {
             <h1 className="text-2xl font-bold text-slate-900">
               Error Loading Professional
             </h1>
-            <p className="mt-2 text-slate-600">{error instanceof Error ? error.message : "Failed to load booking form"}</p>
+            <p className="mt-2 text-slate-600">
+              {error instanceof Error
+                ? error.message
+                : "Failed to load booking form"}
+            </p>
             <Button as="link" to="/professionals" className="mt-4">
               Back to Professionals
             </Button>
@@ -813,11 +831,10 @@ const BookAppointment = () => {
                               setDate(ymd);
                               setSlot("");
                             }}
-                            className={`text-left rounded-md border px-3 py-2 ${
-                              isSelected
-                                ? "bg-violet-600 text-white border-transparent"
-                                : "bg-white text-slate-800 border-slate-200 hover:bg-slate-50"
-                            } ${!hasSlots ? "opacity-50" : ""}`}
+                            className={`text-left rounded-md border px-3 py-2 ${isSelected
+                              ? "bg-violet-600 text-white border-transparent"
+                              : "bg-white text-slate-800 border-slate-200 hover:bg-slate-50"
+                              } ${!hasSlots ? "opacity-50" : ""}`}
                             disabled={!hasSlots}
                           >
                             <div className="text-xs">
@@ -925,13 +942,12 @@ const BookAppointment = () => {
                         key={`${date || "no-date"}-${t}`}
                         type="button"
                         onClick={() => setSlot(t)}
-                        className={`rounded-md px-3 py-2 text-sm border ${
-                          slot === t
-                            ? "bg-violet-600 text-white border-transparent"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                        }`}
+                        className={`rounded-md px-3 py-2 text-sm border ${slot === t
+                          ? "bg-violet-600 text-white border-transparent"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                          }`}
                       >
-                        {t}
+                        {formatTime12h(t)}
                       </button>
                     ))}
                     {!date &&
@@ -1018,7 +1034,12 @@ const BookAppointment = () => {
               </div>
 
               <div className="mt-6 flex gap-2">
-                <Button variant="secondary">Cancel</Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate("/services")}
+                >
+                  Cancel
+                </Button>
                 <Button
                   disabled={!date || !slot}
                   onClick={() => setShowPayment(true)}
@@ -1072,7 +1093,7 @@ const BookAppointment = () => {
                 <div className="flex items-center justify-between">
                   <span>Time</span>
                   <span className="font-medium text-slate-900">
-                    {slot || "—"}
+                    {slot ? formatTime12h(slot) : "—"}
                   </span>
                 </div>
               </div>
@@ -1098,17 +1119,16 @@ const BookAppointment = () => {
                     !selectedService?.id
                   }
                   onClick={toggleAlert}
-                  className={`rounded-full px-4 py-2 ${
-                    wishlist?.active
-                      ? "bg-violet-600 text-white opacity-70 cursor-default"
-                      : "bg-violet-600 text-white hover:bg-violet-700"
-                  } `}
+                  className={`rounded-full px-4 py-2 ${wishlist?.active
+                    ? "bg-violet-600 text-white opacity-70 cursor-default"
+                    : "bg-violet-600 text-white hover:bg-violet-700"
+                    } `}
                 >
                   {subscribeMutation.isPending || unsubscribeMutation.isPending
                     ? "Saving…"
                     : wishlist?.active
-                    ? "Added"
-                    : "Add to alerts"}
+                      ? "Added"
+                      : "Add to alerts"}
                 </Button>
                 <Button
                   as="link"
@@ -1161,7 +1181,7 @@ const BookAppointment = () => {
                         • {date || "Select date"}
                       </span>
                       <span className="opacity-85">
-                        • {slot || "Select time"}
+                        • {slot ? formatTime12h(slot) : "Select time"}
                       </span>
                     </div>
                   </div>
@@ -1217,6 +1237,7 @@ const BookAppointment = () => {
                             stroke="currentColor"
                             strokeWidth="2"
                           >
+                            <circle cx="12" cy="12" r="10" />
                             <path d="M12 6v6l4 2" />
                           </svg>
                           {selectedService?.duration_min} min
@@ -1365,8 +1386,8 @@ const BookAppointment = () => {
                         (isServiceFlow
                           ? selectedService?.price_cents
                             ? `$${(selectedService.price_cents / 100).toFixed(
-                                2
-                              )}`
+                              2
+                            )}`
                             : "—"
                           : "—")}
                     </span>
@@ -1396,7 +1417,7 @@ const BookAppointment = () => {
                     Back
                   </Button>
                   <Button
-                    className="flex-1 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
+                    className="flex-1 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700"
                     disabled={
                       !cardName ||
                       !cardNumber ||
