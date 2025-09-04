@@ -123,17 +123,26 @@ export function useProfessional(userId: string) {
 
 export interface ProfessionalListItem {
   id: string;
+  user_id: string;
+  role: string;
   slug: string;
+  first_name: string;
+  last_name: string;
+  avatar_url: string | null;
+  bio: string | null;
+  specialization: string | null;
+  years_experience: string;
+  location: string | null;
+  verification_status: string;
+  created_at: string;
+  // Legacy computed fields for compatibility
   name: string;
   title: string | null;
-  specialization: string | null;
   years: number;
   price_per_session: number | null;
   starting_price_cents?: number | null;
   specialty_label?: string | null;
   verification: string | null;
-  location: string | null;
-  avatar_url: string | null;
   profile_slug: string | null;
   profile_id: string | null;
   rating: number;
@@ -169,17 +178,26 @@ export function useProfessionals(page = 1, pageSize = 20) {
         const fullName = `${row.profile?.first_name ?? ""} ${row.profile?.last_name ?? ""}`.trim();
         return {
           id: String(row.id),
+          user_id: row.profile?.first_name ? "hidden-for-security" : "", // Hide user IDs for security
+          role: "professional",
           slug: row.slug,
+          first_name: row.profile?.first_name || "",
+          last_name: row.profile?.last_name || "",
+          avatar_url: row.profile?.avatar_url || null,
+          bio: null, // Not available in professionals table
+          specialization: row.specialization || null,
+          years_experience: String(row.years_experience || 0),
+          location: row.location || null,
+          verification_status: row.verification || "pending",
+          created_at: new Date().toISOString(), // Placeholder
+          // Legacy computed fields for compatibility
           name: fullName || "Professional",
           title: row.profession || null,
-          specialization: row.specialization || null,
           years: row.years_experience ?? 0,
           price_per_session: row.price_per_session ?? null,
-          starting_price_cents: row.price_per_session ?? null, // compute precisely in a separate query if needed
+          starting_price_cents: row.price_per_session ?? null,
           specialty_label: null,
           verification: row.verification || null,
-          location: row.location || null,
-          avatar_url: row.profile?.avatar_url || null,
           profile_slug: row.profile?.slug || null,
           profile_id: row.profile_id ?? null,
           rating: 0,
