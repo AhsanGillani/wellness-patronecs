@@ -227,16 +227,10 @@ export function useAgora(appId: string) {
       // Try to capture screen with audio when available
       let result: any;
       try {
-        result = await AgoraRTC.createScreenVideoTrack({
-          video: { width: { max: 1920 }, height: { max: 1080 }, frameRate: 5 },
-          audio: true
-        }, 'auto');
+        result = await AgoraRTC.createScreenVideoTrack({}, 'enable');
       } catch (e) {
         // Retry without audio (common denial case)
-        result = await AgoraRTC.createScreenVideoTrack({
-          video: { width: { max: 1920 }, height: { max: 1080 }, frameRate: 5 },
-          audio: false
-        }, 'auto');
+        result = await AgoraRTC.createScreenVideoTrack({}, 'disable');
       }
       if (Array.isArray(result)) {
         screenVideoTrackRef.current = result[0] as ILocalVideoTrack;

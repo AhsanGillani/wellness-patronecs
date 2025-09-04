@@ -595,7 +595,7 @@ const BookAppointment = () => {
             <h1 className="text-2xl font-bold text-slate-900">
               Error Loading Professional
             </h1>
-            <p className="mt-2 text-slate-600">{error}</p>
+            <p className="mt-2 text-slate-600">{error instanceof Error ? error.message : "Failed to load booking form"}</p>
             <Button as="link" to="/professionals" className="mt-4">
               Back to Professionals
             </Button>

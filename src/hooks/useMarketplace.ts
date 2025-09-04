@@ -83,11 +83,11 @@ export interface BlogPost {
   created_at: string;
 }
 
-// Profiles - Select safe fields and maintain compatibility
+// Create backward-compatible hooks that maintain existing API structure
 export function useProfiles(page = 1, pageSize = 20) {
   const from = Math.max(0, (page - 1) * pageSize);
   const to = from + pageSize - 1;
-  return useQuery({
+  const result = useQuery({
     queryKey: ["profiles", page, pageSize],
     queryFn: async () => {
       const { data, error } = await simpleSupabase
@@ -96,23 +96,20 @@ export function useProfiles(page = 1, pageSize = 20) {
         .order("created_at", { ascending: false })
         .range(from, to);
       if (error) throw error;
-      
-      // Transform to include legacy fields for compatibility
-      return (data || []).map(profile => ({
-        ...profile,
-        // Add legacy computed fields
-        professionals: profile,
-        loading: false,
-        name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'User',
-        email: profile.role === 'admin' ? 'admin@example.com' : undefined, // Only show for admin context
-        phone: profile.role === 'admin' ? '+1-xxx-xxx-xxxx' : undefined, // Only show for admin context
-      }));
+      return data || [];
     },
     retry: 2,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+
+  // Add legacy compatibility properties
+  return {
+    ...result,
+    professionals: result.data?.filter(p => p.role === 'professional') || [],
+    loading: result.isLoading,
+  };
 }
 
 export function useProfessional(userId: string) {
@@ -227,7 +224,7 @@ export function useProfessionals(page = 1, pageSize = 20) {
 export function useServices(page = 1, pageSize = 20) {
   const from = Math.max(0, (page - 1) * pageSize);
   const to = from + pageSize - 1;
-  return useQuery({
+  const result = useQuery({
     queryKey: ["services", page, pageSize],
     queryFn: async () => {
       const { data, error } = await (simpleSupabase as any)
@@ -246,6 +243,13 @@ export function useServices(page = 1, pageSize = 20) {
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+
+  // Add legacy compatibility properties
+  return {
+    ...result,
+    services: result.data || [],
+    loading: result.isLoading,
+  };
 }
 
 export function useAppointments() {
