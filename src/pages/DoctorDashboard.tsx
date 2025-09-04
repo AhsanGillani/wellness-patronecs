@@ -2220,7 +2220,11 @@ const DoctorDashboard = () => {
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
                   Error Loading Patients
                 </h3>
-                <p className="text-gray-500">{patientsError instanceof Error ? patientsError.message : "Failed to load patients"}</p>
+                <p className="text-gray-500">
+                  {patientsError instanceof Error
+                    ? patientsError.message
+                    : "Failed to load patients"}
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -2816,7 +2820,8 @@ const DoctorDashboard = () => {
           .limit(1)
           .maybeSingle();
         if (error || !data) return;
-        if ((data as any)?.verification === "rejected") setShowRejectionBanner(true);
+        if ((data as any)?.verification === "rejected")
+          setShowRejectionBanner(true);
         else setShowRejectionBanner(false);
       } catch {}
     };
@@ -3578,8 +3583,9 @@ const DoctorDashboard = () => {
           patients?.find(
             (p) =>
               (p as any).email ===
-              paidAppointments.find((apt) => apt.id === (r as any).appointment_id)
-                ?.patientEmail
+              paidAppointments.find(
+                (apt) => apt.id === (r as any).appointment_id
+              )?.patientEmail
           )?.name || "Unknown Patient",
         subject: "Appointment reschedule request",
         message: `Hi Dr. Wilson, I need to reschedule my appointment. ${
@@ -3591,8 +3597,9 @@ const DoctorDashboard = () => {
           patients?.find(
             (p) =>
               (p as any).email ===
-              paidAppointments.find((apt) => apt.id === (r as any).appointment_id)
-                ?.patientEmail
+              paidAppointments.find(
+                (apt) => apt.id === (r as any).appointment_id
+              )?.patientEmail
           )?.avatar_url ||
           "https://images.unsplash.com/photo-1494790108755-2616b612b786?q=80&w=256&auto=format&fit=crop",
       }));
@@ -4910,32 +4917,34 @@ const DoctorDashboard = () => {
         // Create service in database
         const { data: serviceData, error: serviceError } = await supabase
           .from("services")
-          .insert([{
-          professional_id: professionalId,
-            slug:
-              newService.name.toLowerCase().replace(/\s+/g, "-") +
-              "-" +
-              Date.now(),
-            name: newService.name,
-            category_id: categoryId, // Now properly set the category ID
-            duration_min: Number(newService.durationMin),
-            price_cents: Math.round(Number(newService.price) * 100), // Convert dollars to cents
-            mode: newService.mode,
-            active: newService.active,
-            description: newService.description,
-            benefits: benefits,
-            image_url: newService.imageUrl || null,
-            availability: {
-              days: newService.availableDays,
-              scheduleType: newService.scheduleType,
-              numberOfSlots: newService.numberOfSlots,
-              timeSlots: newService.timeSlots,
-              customSchedules:
-                newService.scheduleType === "custom"
-                  ? newService.customSchedules
-                  : undefined,
+          .insert([
+            {
+              professional_id: professionalId,
+              slug:
+                newService.name.toLowerCase().replace(/\s+/g, "-") +
+                "-" +
+                Date.now(),
+              name: newService.name,
+              category_id: categoryId, // Now properly set the category ID
+              duration_min: Number(newService.durationMin),
+              price_cents: Math.round(Number(newService.price) * 100), // Convert dollars to cents
+              mode: newService.mode,
+              active: newService.active,
+              description: newService.description,
+              benefits: benefits,
+              image_url: newService.imageUrl || null,
+              availability: {
+                days: newService.availableDays,
+                scheduleType: newService.scheduleType,
+                numberOfSlots: newService.numberOfSlots,
+                timeSlots: newService.timeSlots,
+                customSchedules:
+                  newService.scheduleType === "custom"
+                    ? newService.customSchedules
+                    : undefined,
+              },
             },
-          }])
+          ])
           .select()
           .single();
 
@@ -5009,9 +5018,13 @@ const DoctorDashboard = () => {
       // Ensure availability data is properly structured
       const availability = svc.availability || {};
       const availableDays = (availability as any).days || [];
-      const scheduleType = (availability as any).customSchedules ? "custom" : "same";
+      const scheduleType = (availability as any).customSchedules
+        ? "custom"
+        : "same";
       const numberOfSlots = (availability as any).numberOfSlots || 1;
-      const timeSlots = (availability as any).timeSlots || [{ start: "", end: "" }];
+      const timeSlots = (availability as any).timeSlots || [
+        { start: "", end: "" },
+      ];
       const customSchedules = (availability as any).customSchedules || {};
 
       setNewService({
@@ -5584,15 +5597,20 @@ const DoctorDashboard = () => {
                                 {generateTimeSlots(newService.durationMin).map(
                                   (slot, slotIndex) => (
                                     <option key={slotIndex} value={slot.start}>
-                                      {slot.start} - {slot.end} (
+                                      {formatTime12h(slot.start)} -{" "}
+                                      {formatTime12h(slot.end)} (
                                       {newService.durationMin} min)
                                     </option>
                                   )
                                 )}
                               </select>
                               <div className="w-24 border border-purple-300 rounded-xl px-3 py-2 bg-purple-50 text-purple-700 text-xs text-center font-medium">
-                                {newService.timeSlots?.[index]?.end ||
-                                  "--:-- --"}
+                                {newService.timeSlots?.[index]?.end
+                                  ? formatTime12h(
+                                      newService.timeSlots?.[index]
+                                        ?.end as string
+                                    )
+                                  : "--:-- --"}
                               </div>
                             </div>
                           ))}

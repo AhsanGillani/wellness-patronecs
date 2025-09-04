@@ -14,6 +14,7 @@ import {
   useNotifications,
   useAllNotifications,
   useWithdrawals,
+  useSupportMessages,
 } from "@/hooks/useMarketplace";
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -37,6 +38,7 @@ import {
   X,
   CreditCard,
   Wallet,
+  MessageSquare,
 } from "lucide-react";
 import {
   AreaChart,
@@ -67,10 +69,19 @@ type AdminTab =
   | "earnings"
   | "withdrawals"
   | "reports"
-  | "settings";
+  | "settings"
+  | "support";
 
 const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>("overview");
+  const [supportPage, setSupportPage] = useState(1);
+  const [supportPageSize, setSupportPageSize] = useState(10);
+  const [usersPage, setUsersPage] = useState(1);
+  const [usersPageSize, setUsersPageSize] = useState(10);
+  const [prosPage, setProsPage] = useState(1);
+  const [prosPageSize, setProsPageSize] = useState(10);
+  const [servicesPage, setServicesPage] = useState(1);
+  const [servicesPageSize, setServicesPageSize] = useState(10);
   const [searchQuery, setSearchQuery] = useState("");
   const [showUserModal, setShowUserModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState<(typeof users)[0] | null>(
@@ -194,9 +205,9 @@ const AdminDashboard = () => {
         name:
           `${profile.first_name || ""} ${profile.last_name || ""}`.trim() ||
           "Anonymous User",
-        email: "***@***.***", // Hide sensitive data for security
+        email: profile.email || "",
         role: profile.role,
-        phone: "***-***-****", // Hide sensitive data for security
+        phone: (profile.phone || profile.phone_number || "").toString(),
         location: profile.location || "No location",
         joinDate: new Date(profile.created_at).toLocaleDateString(),
         lastActive: new Date(profile.created_at).toLocaleDateString(), // Use created_at as fallback
@@ -237,16 +248,19 @@ const AdminDashboard = () => {
           name:
             `${profile.first_name || ""} ${profile.last_name || ""}`.trim() ||
             "Professional",
-          profession: "Healthcare Professional", // Default profession since it's not in profiles table
+          profession:
+            profile.profession ||
+            profile.specialization ||
+            "Healthcare Professional",
           yearsOfExperience: String(profile.years_experience || 0),
           specialization: profile.specialization || "Not specified",
-          email: "***@***.***", // Hide sensitive data for security
+          email: profile.email || "",
           verification:
             (profile.verification_status as
               | "pending"
               | "verified"
               | "rejected") || "pending",
-          phone: "***-***-****", // Hide sensitive data for security
+          phone: (profile.phone || profile.phone_number || "").toString(),
           address: profile.location || "No location",
           joinDate: new Date(profile.created_at).toLocaleDateString(),
           lastActive: new Date(profile.created_at).toLocaleDateString(), // Use created_at as fallback
@@ -2134,6 +2148,15 @@ const AdminDashboard = () => {
       )
     );
 
+    const totalUsersCount = filtered.length;
+    const totalUsersPages = Math.max(
+      1,
+      Math.ceil(totalUsersCount / usersPageSize)
+    );
+    const usersStart = (usersPage - 1) * usersPageSize;
+    const usersEnd = usersStart + usersPageSize;
+    const visibleUsers = filtered.slice(usersStart, usersEnd);
+
     return (
       <div className="space-y-4">
         <div className="bg-white rounded-xl border p-4">
@@ -2160,7 +2183,7 @@ const AdminDashboard = () => {
             <div className="col-span-2">Location</div>
             <div className="col-span-2 text-center">Actions</div>
           </div>
-          {filtered.map((u) => (
+          {visibleUsers.map((u) => (
             <div
               key={u.id}
               className="px-6 py-4 border-b last:border-0 grid grid-cols-1 md:grid-cols-12 gap-4 items-center"
@@ -2192,6 +2215,72 @@ const AdminDashboard = () => {
               No users found.
             </div>
           )}
+        </div>
+
+        {/* Users Pagination */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-500">
+            Page {usersPage} of {totalUsersPages}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setUsersPage(1)}
+              disabled={usersPage === 1}
+              className={`px-3 py-1 border rounded ${
+                usersPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              First
+            </button>
+            <button
+              onClick={() => setUsersPage((p) => Math.max(1, p - 1))}
+              disabled={usersPage === 1}
+              className={`px-3 py-1 border rounded ${
+                usersPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              Prev
+            </button>
+            {Array.from({ length: totalUsersPages }, (_, i) => i + 1).map(
+              (p) => (
+                <button
+                  key={p}
+                  onClick={() => setUsersPage(p)}
+                  className={`px-3 py-1 border rounded ${
+                    p === usersPage
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : ""
+                  }`}
+                >
+                  {p}
+                </button>
+              )
+            )}
+            <button
+              onClick={() =>
+                setUsersPage((p) => Math.min(totalUsersPages, p + 1))
+              }
+              disabled={usersPage === totalUsersPages}
+              className={`px-3 py-1 border rounded ${
+                usersPage === totalUsersPages
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setUsersPage(totalUsersPages)}
+              disabled={usersPage === totalUsersPages}
+              className={`px-3 py-1 border rounded ${
+                usersPage === totalUsersPages
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
+            >
+              Last
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -2246,6 +2335,15 @@ const AdminDashboard = () => {
         : professionalView === "pending"
         ? pendingPros
         : rejectedPros;
+
+    const totalProsCount = currentPros.length;
+    const totalProsPages = Math.max(
+      1,
+      Math.ceil(totalProsCount / prosPageSize)
+    );
+    const prosStart = (prosPage - 1) * prosPageSize;
+    const prosEnd = prosStart + prosPageSize;
+    const visiblePros = currentPros.slice(prosStart, prosEnd);
 
     return (
       <div className="space-y-4">
@@ -2332,7 +2430,7 @@ const AdminDashboard = () => {
                 : "No rejected professionals found."}
             </div>
           ) : (
-            currentPros.map((p) => (
+            visiblePros.map((p) => (
               <div
                 key={p.id}
                 className="px-6 py-4 border-b last:border-0 grid grid-cols-1 md:grid-cols-12 gap-4 items-center"
@@ -2419,12 +2517,86 @@ const AdminDashboard = () => {
             ))
           )}
         </div>
+        {/* Pros Pagination */}
+        <div className="flex items-center justify-between mt-4">
+          <div className="text-sm text-gray-500">
+            Page {prosPage} of {totalProsPages}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setProsPage(1)}
+              disabled={prosPage === 1}
+              className={`px-3 py-1 border rounded ${
+                prosPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              First
+            </button>
+            <button
+              onClick={() => setProsPage((p) => Math.max(1, p - 1))}
+              disabled={prosPage === 1}
+              className={`px-3 py-1 border rounded ${
+                prosPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              Prev
+            </button>
+            {Array.from({ length: totalProsPages }, (_, i) => i + 1).map(
+              (p) => (
+                <button
+                  key={p}
+                  onClick={() => setProsPage(p)}
+                  className={`px-3 py-1 border rounded ${
+                    p === prosPage
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : ""
+                  }`}
+                >
+                  {p}
+                </button>
+              )
+            )}
+            <button
+              onClick={() =>
+                setProsPage((p) => Math.min(totalProsPages, p + 1))
+              }
+              disabled={prosPage === totalProsPages}
+              className={`px-3 py-1 border rounded ${
+                prosPage === totalProsPages
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setProsPage(totalProsPages)}
+              disabled={prosPage === totalProsPages}
+              className={`px-3 py-1 border rounded ${
+                prosPage === totalProsPages
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
+            >
+              Last
+            </button>
+          </div>
+        </div>
       </div>
     );
   };
 
   const renderServices = () => {
     const filteredServices = getFilteredServices();
+
+    const totalServicesCount = filteredServices.length;
+    const totalServicesPages = Math.max(
+      1,
+      Math.ceil(totalServicesCount / servicesPageSize)
+    );
+    const servicesStart = (servicesPage - 1) * servicesPageSize;
+    const servicesEnd = servicesStart + servicesPageSize;
+    const visibleServices = filteredServices.slice(servicesStart, servicesEnd);
 
     return (
       <div className="space-y-6">
@@ -2523,7 +2695,7 @@ const AdminDashboard = () => {
             <div className="col-span-1 text-center">Actions</div>
           </div>
 
-          {filteredServices.map((service) => (
+          {visibleServices.map((service) => (
             <div
               key={service.id}
               className="px-6 py-4 border-b last:border-0 grid grid-cols-1 md:grid-cols-12 gap-4 items-center"
@@ -2628,6 +2800,72 @@ const AdminDashboard = () => {
               No services match your filters.
             </div>
           )}
+        </div>
+
+        {/* Services Pagination */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-500">
+            Page {servicesPage} of {totalServicesPages}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setServicesPage(1)}
+              disabled={servicesPage === 1}
+              className={`px-3 py-1 border rounded ${
+                servicesPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              First
+            </button>
+            <button
+              onClick={() => setServicesPage((p) => Math.max(1, p - 1))}
+              disabled={servicesPage === 1}
+              className={`px-3 py-1 border rounded ${
+                servicesPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              Prev
+            </button>
+            {Array.from({ length: totalServicesPages }, (_, i) => i + 1).map(
+              (p) => (
+                <button
+                  key={p}
+                  onClick={() => setServicesPage(p)}
+                  className={`px-3 py-1 border rounded ${
+                    p === servicesPage
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : ""
+                  }`}
+                >
+                  {p}
+                </button>
+              )
+            )}
+            <button
+              onClick={() =>
+                setServicesPage((p) => Math.min(totalServicesPages, p + 1))
+              }
+              disabled={servicesPage === totalServicesPages}
+              className={`px-3 py-1 border rounded ${
+                servicesPage === totalServicesPages
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
+            >
+              Next
+            </button>
+            <button
+              onClick={() => setServicesPage(totalServicesPages)}
+              disabled={servicesPage === totalServicesPages}
+              className={`px-3 py-1 border rounded ${
+                servicesPage === totalServicesPages
+                  ? "opacity-50 cursor-not-allowed"
+                  : ""
+              }`}
+            >
+              Last
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -3844,6 +4082,169 @@ const AdminDashboard = () => {
     );
   };
 
+  // Support tab (paginated list of contact messages)
+  const SupportTab = () => {
+    const {
+      data: messages = [],
+      isLoading,
+      error,
+      refetch,
+    } = useSupportMessages(supportPage, supportPageSize);
+
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-gray-900">Support</h2>
+        </div>
+        <div className="overflow-x-auto bg-white rounded-lg border">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Date
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Name
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Email
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Subject
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Message
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {isLoading ? (
+                <tr>
+                  <td className="px-4 py-6 text-sm text-gray-500" colSpan={6}>
+                    Loading...
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td className="px-4 py-6 text-sm text-red-600" colSpan={6}>
+                    Failed to load support messages
+                  </td>
+                </tr>
+              ) : messages.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-10" colSpan={6}>
+                    <div className="flex flex-col items-center justify-center text-center gap-3">
+                      <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
+                        <span className="text-blue-600 text-xl">💬</span>
+                      </div>
+                      <div className="text-lg font-semibold text-gray-900">
+                        No support messages yet
+                      </div>
+                      <div className="text-sm text-gray-600 max-w-md">
+                        When users submit the contact form, their messages will
+                        appear here. You can reply directly via email, triage
+                        requests, and keep track of conversations.
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                messages.map((m) => {
+                  const d = new Date(m.created_at);
+                  const valid = !isNaN(d.getTime());
+                  const when = valid
+                    ? d.toLocaleString(undefined, {
+                        year: "numeric",
+                        month: "short",
+                        day: "2-digit",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })
+                    : "Unknown";
+                  return (
+                    <tr key={m.id}>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {when}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-900 font-medium">
+                        {m.name}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-blue-600">
+                        <a href={`mailto:${m.email}`}>{m.email}</a>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {m.subject || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700 max-w-xs truncate">
+                        {m.message}
+                      </td>
+                      <td className="px-4 py-3 text-sm">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() =>
+                              navigator.clipboard.writeText(m.email)
+                            }
+                            className="px-3 py-1 border rounded text-gray-700 hover:bg-gray-50"
+                          >
+                            Copy email
+                          </button>
+                          <a
+                            href={`mailto:${
+                              m.email
+                            }?subject=Re: ${encodeURIComponent(
+                              m.subject || "Support"
+                            )}`}
+                            className="px-3 py-1 border rounded text-blue-700 hover:bg-blue-50"
+                          >
+                            Reply
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-500">Page {supportPage}</div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSupportPage(1)}
+              disabled={supportPage === 1}
+              className={`px-3 py-1 border rounded ${
+                supportPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              First
+            </button>
+            <button
+              onClick={() => setSupportPage((p) => Math.max(1, p - 1))}
+              disabled={supportPage === 1}
+              className={`px-3 py-1 border rounded ${
+                supportPage === 1 ? "opacity-50 cursor-not-allowed" : ""
+              }`}
+            >
+              Prev
+            </button>
+            <button
+              onClick={() => setSupportPage((p) => p + 1)}
+              className="px-3 py-1 border rounded"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderReports = () => (
     <div className="bg-white rounded-xl border overflow-hidden">
       <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b text-xs font-medium text-gray-500">
@@ -4176,6 +4577,8 @@ const AdminDashboard = () => {
         return renderBlogs();
       case "notifications":
         return <NotificationsTab />;
+      case "support":
+        return <SupportTab />;
 
       case "earnings":
         return renderEarnings();
@@ -4607,6 +5010,17 @@ const AdminDashboard = () => {
                 <span>Withdraw Requests</span>
               </button>
               <button
+                onClick={() => setActiveTab("support")}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
+                  activeTab === "support"
+                    ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
+              >
+                <MessageSquare className="w-5 h-5" />
+                <span>Support</span>
+              </button>
+              <button
                 onClick={() => setActiveTab("reports")}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-colors ${
                   activeTab === "reports"
@@ -4662,6 +5076,8 @@ const AdminDashboard = () => {
                   ? "Reports"
                   : activeTab === "settings"
                   ? "Settings"
+                  : activeTab === "support"
+                  ? "Support"
                   : "Admin"}
               </h1>
               <p className="text-gray-600">
@@ -4870,14 +5286,14 @@ const AdminDashboard = () => {
                         </label>
                         <span
                           className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                             (selectedService as any).availabilityDetails
+                            (selectedService as any).availabilityDetails
                               ?.scheduleType === "custom"
                               ? "bg-purple-100 text-purple-800"
                               : "bg-blue-100 text-blue-800"
                           }`}
                         >
-                          {(selectedService as any).availabilityDetails?.scheduleType ===
-                          "custom"
+                          {(selectedService as any).availabilityDetails
+                            ?.scheduleType === "custom"
                             ? "Customize Per Day - Different schedules for different days"
                             : "Same for All Days - Use identical time slots every day"}
                         </span>
@@ -4917,35 +5333,37 @@ const AdminDashboard = () => {
                         </label>
                         <div className="bg-gray-50 p-3 rounded-lg">
                           <p className="text-sm text-gray-900">
-                             {(selectedService as any).availabilityDetails?.timeSlots ||
-                               ((selectedService as any).availabilityDetails
+                            {(selectedService as any).availabilityDetails
+                              ?.timeSlots ||
+                              ((selectedService as any).availabilityDetails
                                 ?.hasAvailabilityData === false
                                 ? "Availability not configured for this service"
                                 : "No time slots configured")}
                           </p>
-                           {(selectedService as any).availabilityDetails
-                             ?.totalTimeSlots && (
+                          {(selectedService as any).availabilityDetails
+                            ?.totalTimeSlots && (
                             <p className="text-xs text-gray-600 mt-1">
                               Total slots:{" "}
-                               {
-                                 (selectedService as any).availabilityDetails
-                                   .totalTimeSlots
-                               }
+                              {
+                                (selectedService as any).availabilityDetails
+                                  .totalTimeSlots
+                              }
                             </p>
                           )}
                         </div>
                       </div>
 
                       {/* Custom Schedules (if applicable) */}
-                      {(selectedService as any).availabilityDetails?.customSchedules && (
+                      {(selectedService as any).availabilityDetails
+                        ?.customSchedules && (
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             Custom Day Schedules
                           </label>
                           <div className="space-y-2">
-                             {Object.entries(
-                               (selectedService as any).availabilityDetails
-                                 .customSchedules
+                            {Object.entries(
+                              (selectedService as any).availabilityDetails
+                                .customSchedules
                             ).map(([day, schedule]: [string, any]) => (
                               <div
                                 key={day}

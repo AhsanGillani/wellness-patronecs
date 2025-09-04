@@ -92,7 +92,7 @@ export function useProfiles(page = 1, pageSize = 20) {
     queryFn: async () => {
       const { data, error } = await simpleSupabase
         .from("profiles")
-        .select("id,user_id,role,slug,first_name,last_name,avatar_url,bio,specialization,years_experience,location,verification_status,created_at")
+        .select("id,user_id,role,slug,first_name,last_name,avatar_url,bio,specialization,years_experience,location,verification_status,created_at,email,phone")
         .order("created_at", { ascending: false })
         .range(from, to);
       if (error) throw error;
@@ -119,7 +119,7 @@ export function useProfessional(userId: string) {
       // Only select safe fields for public professional profiles
       const { data, error } = await simpleSupabase
         .from("profiles")
-        .select("id,user_id,role,slug,first_name,last_name,avatar_url,bio,specialization,years_experience,location,verification_status,created_at")
+        .select("id,user_id,role,slug,first_name,last_name,avatar_url,bio,specialization,years_experience,location,verification_status,created_at,email,phone")
         .eq("user_id", userId)
         .maybeSingle();
       if (error) throw error;
@@ -985,6 +985,37 @@ export function useWishlistUnsubscribe() {
       const message = e instanceof Error ? e.message : String(e);
       toast.error(message);
     }
+  });
+}
+
+// Support messages (Contact form submissions)
+export interface SupportMessage {
+  id: number;
+  name: string;
+  email: string;
+  subject: string | null;
+  message: string;
+  created_at: string;
+}
+
+export function useSupportMessages(page = 1, pageSize = 20) {
+  const from = Math.max(0, (page - 1) * pageSize);
+  const to = from + pageSize - 1;
+  return useQuery<SupportMessage[]>({
+    queryKey: ["support-messages", page, pageSize],
+    queryFn: async () => {
+      const { data, error } = await (simpleSupabase as any)
+        .from("support_messages")
+        .select("id,name,email,subject,message,created_at")
+        .order("created_at", { ascending: false })
+        .range(from, to);
+      if (error) throw error;
+      return (data || []) as SupportMessage[];
+    },
+    retry: 2,
+    retryDelay: (attempt: number) => Math.min(1000 * 2 ** attempt, 8000),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 
