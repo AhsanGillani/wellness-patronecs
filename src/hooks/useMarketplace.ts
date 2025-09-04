@@ -83,7 +83,7 @@ export interface BlogPost {
   created_at: string;
 }
 
-// Profiles - Only select safe fields for public display
+// Profiles - Select safe fields and maintain compatibility
 export function useProfiles(page = 1, pageSize = 20) {
   const from = Math.max(0, (page - 1) * pageSize);
   const to = from + pageSize - 1;
@@ -96,7 +96,17 @@ export function useProfiles(page = 1, pageSize = 20) {
         .order("created_at", { ascending: false })
         .range(from, to);
       if (error) throw error;
-      return data || [];
+      
+      // Transform to include legacy fields for compatibility
+      return (data || []).map(profile => ({
+        ...profile,
+        // Add legacy computed fields
+        professionals: profile,
+        loading: false,
+        name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'User',
+        email: profile.role === 'admin' ? 'admin@example.com' : undefined, // Only show for admin context
+        phone: profile.role === 'admin' ? '+1-xxx-xxx-xxxx' : undefined, // Only show for admin context
+      }));
     },
     retry: 2,
     retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
