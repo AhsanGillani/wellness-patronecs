@@ -4,10 +4,7 @@ import Button from "@/components/ui/button";
 import { useBlogs } from "@/hooks/useMarketplace";
 import { Link } from "react-router-dom";
 import Breadcrumbs from "@/components/site/Breadcrumbs";
-<<<<<<< HEAD
 import Skeleton from "@/components/ui/Skeleton";
-=======
->>>>>>> main
 
 const Blogs = () => {
   const { data: posts, isLoading: loading, error } = useBlogs();
@@ -17,7 +14,6 @@ const Blogs = () => {
       <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
         <Header />
         <main className="py-16">
-<<<<<<< HEAD
           <div className="mx-auto max-w-7xl px-4">
             <Breadcrumbs />
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-8">
@@ -57,11 +53,11 @@ const Blogs = () => {
                 </div>
               ))}
             </div>
-=======
+          </div>
+
           <div className="mx-auto max-w-7xl px-4 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-600 mx-auto"></div>
             <p className="mt-4 text-slate-600">Loading blog posts...</p>
->>>>>>> main
           </div>
         </main>
         <Footer />

@@ -55,11 +55,10 @@ const Header = () => {
   };
 
   const getInitials = (firstName?: string, lastName?: string) => {
-<<<<<<< HEAD
-    if (!firstName && !lastName) return '';
-=======
+if (!firstName && !lastName) return '';
+
     if (!firstName && !lastName) return 'U';
->>>>>>> main
+
     return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
   };
 
@@ -240,8 +239,7 @@ const Header = () => {
                 Get Started
               </Button>
             </div>
-<<<<<<< HEAD
-          ) : loading || !profile ? (
+) : loading || !profile ? (
             <div className="flex items-center gap-4">
               {/* Search skeleton */}
               <div className="hidden md:block">
@@ -250,10 +248,10 @@ const Header = () => {
               {/* Profile skeleton */}
               <div className="h-9 w-9 rounded-full bg-gray-200 animate-pulse"></div>
             </div>
-=======
+
           ) : loading ? (
             <div className="h-9 w-9 rounded-full bg-slate-200 animate-pulse" />
->>>>>>> main
+
           ) : (
             <div className="relative" ref={menuRef}>
               <button

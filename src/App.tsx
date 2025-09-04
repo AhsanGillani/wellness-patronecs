@@ -86,7 +86,6 @@ const AppContent = () => {
   }
 
   return (
-<<<<<<< HEAD
     <>
       <ScrollToTop />
       <Routes>
@@ -131,42 +130,9 @@ const App = () => {
     <BrowserRouter>
       <AuthProvider>
         <AppContent />
-=======
-    <BrowserRouter>
-          <AuthProvider>
-            <ScrollToTop />
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/community" element={<Community />} />
-              <Route path="/community/q/:id" element={<CommunityQuestion />} />
-              <Route path="/blogs" element={<Blogs />} />
-              <Route path="/blogs/:slug" element={<BlogDetail />} />
-              <Route path="/professionals" element={<Professionals />} />
-              <Route path="/professional/:slug" element={<Professional />} />
-              <Route path="/services" element={<Services />} />
-              <Route path="/services/:providerSlug/:serviceSlug" element={<ServiceDetail />} />
-              <Route path="/events" element={<Events />} />
-              <Route path="/events/:id" element={<EventDetail />} />
-              <Route path="/profile" element={<Profile />} />
-              <Route path="/book/:providerSlug/:serviceSlug" element={<BookAppointment />} />
-              <Route path="/book/:id" element={<BookAppointment />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/auth" element={<Navigate to="/login" replace />} />
-              <Route path="/signup" element={<SignupSelection />} />
-              <Route path="/signup/patient" element={<PatientSignup />} />
-              <Route path="/signup/professional" element={<ProfessionalSignup />} />
-              <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
-              <Route path="/admin" element={<AdminDashboard />} />
-              <Route path="/notifications" element={<Notifications />} />
-              <Route path="/notifications/:id" element={<NotificationDetail />} />
-              <Route path="/live-session/:id" element={<LiveSession />} />
-              <Route path="*" element={<Home />} />
-            </Routes>
->>>>>>> main
-          </AuthProvider>
-        </BrowserRouter>
-        );
+      </AuthProvider>
+    </BrowserRouter>
+  );
 };
 
-        export default App;
+export default App;

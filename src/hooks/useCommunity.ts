@@ -112,10 +112,7 @@ async function fetchQuestions(topicId?: string): Promise<Question[]> {
   const questions = (data || []) as Question[];
 
   // Collect ids to enrich
-<<<<<<< HEAD
   const questionIds = questions.map((q) => q.id);
-=======
->>>>>>> main
   const authorUserIds = Array.from(
     new Set(
       questions
@@ -155,9 +152,8 @@ async function fetchQuestions(topicId?: string): Promise<Question[]> {
     topicIdToTopic.set(t.id, t);
   });
 
-<<<<<<< HEAD
   // Fetch answer counts per question
-  let answerCounts = new Map<string, number>();
+  const answerCounts = new Map<string, number>();
   if (questionIds.length > 0) {
     const { data: answersList } = await supabase
       .from('community_answers')
@@ -169,18 +165,12 @@ async function fetchQuestions(topicId?: string): Promise<Question[]> {
       answerCounts.set(k, (answerCounts.get(k) || 0) + 1);
     });
   }
-
-=======
->>>>>>> main
   return questions.map((q) => {
     const profile = q.author_user_id ? userIdToProfile.get(q.author_user_id) : null;
     const topic = q.topic_id ? topicIdToTopic.get(q.topic_id) : null;
     return {
       ...q,
-<<<<<<< HEAD
       answer_count: answerCounts.get(q.id) || 0,
-=======
->>>>>>> main
       author: profile
         ? {
             first_name: profile.first_name,

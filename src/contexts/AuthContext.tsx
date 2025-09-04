@@ -36,7 +36,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isSigningUp, setIsSigningUp] = useState(false);
 
-<<<<<<< HEAD
   // Simple local cache for profile to speed up initial paint
   const PROFILE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
   const cacheKeyFor = (userId: string) => `cached_profile_${userId}`;
@@ -61,9 +60,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const clearCachedProfile = (userId: string) => {
     try { localStorage.removeItem(cacheKeyFor(userId)); } catch {}
   };
-
-=======
->>>>>>> main
   const fetchProfile = async (userId: string) => {
     // Don't fetch profile if we're in the middle of signup
     if (isSigningUp) {
@@ -71,7 +67,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     try {
-<<<<<<< HEAD
       // 1) Hydrate quickly from cache if available
       const cached = readCachedProfile(userId);
       if (cached) {
@@ -88,11 +83,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { data, error } = await supabase
         .from('profiles')
         .select('id, user_id, role, first_name, last_name, email, avatar_url, phone, location, bio, specialization, years_experience, verification_status, created_at, updated_at')
-=======
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
->>>>>>> main
         .eq('user_id', userId)
         .single();
       
@@ -100,19 +90,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // Handle the case where profile doesn't exist yet (expected for new users)
         if (error.code === 'PGRST116' || error.code === '406') {
           setProfile(null);
-<<<<<<< HEAD
           setEffectiveRole(null); // Don't assign default role
           clearCachedProfile(userId);
-=======
-          setEffectiveRole('patient');
->>>>>>> main
           return;
         }
         throw error;
       }
       
       setProfile(data);
-<<<<<<< HEAD
       writeCachedProfile(userId, data);
       
       // Set effective role directly from profile data (much faster than RPC call)
@@ -125,41 +110,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } catch (error) {
       // Don't wipe existing profile/role on transient errors; keep current UI stable
       console.error('Error fetching profile:', error);
-=======
-      
-      // Get effective role using database function
-      try {
-        const { data: roleData, error: roleError } = await supabase
-          .rpc('get_current_user_role');
-        
-        if (!roleError && roleData) {
-          setEffectiveRole(roleData);
-        } else {
-          // Fallback to profile role, treating doctor and professional as equivalent
-          const role = data?.role;
-          if (role === 'doctor' || role === 'professional') {
-            setEffectiveRole('professional');
-          } else {
-            setEffectiveRole(role || 'patient');
-          }
-        }
-      } catch (roleError) {
-        const role = data?.role;
-        if (role === 'doctor' || role === 'professional') {
-          setEffectiveRole('professional');
-        } else {
-          setEffectiveRole(role || 'patient');
-        }
-      }
-    } catch (error) {
-      setProfile(null);
-      setEffectiveRole(null);
->>>>>>> main
     }
   };
 
   useEffect(() => {
-<<<<<<< HEAD
     let isMounted = true;
     
     // Set up auth state listener FIRST
@@ -189,30 +143,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             setLoading(false);
           }
         }
-=======
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
-        // Only fetch profile if we're not signing up
-        if (session?.user && !isSigningUp) {
-          setTimeout(() => {
-            fetchProfile(session.user.id);
-          }, 1000); // Increased delay to ensure signup completes
-        } else if (!session?.user) {
-          setProfile(null);
-          setEffectiveRole(null);
-        }
-        
-        setLoading(false);
->>>>>>> main
       }
     );
 
     // THEN check for existing session
-<<<<<<< HEAD
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       try {
         if (!isMounted) return;
@@ -273,30 +207,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       result = await tryOnce(20000);
     }
     return result;
-=======
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user && !isSigningUp) {
-        setTimeout(() => {
-          fetchProfile(session.user.id);
-        }, 1000);
-      }
-      
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
-  }, [isSigningUp]);
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    return { error };
->>>>>>> main
   };
 
   const signUp = async (email: string, password: string, userData?: any) => {
@@ -322,10 +232,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const signOut = async () => {
     const { error } = await supabase.auth.signOut();
-<<<<<<< HEAD
     try { if (user?.id) clearCachedProfile(user.id); } catch {}
-=======
->>>>>>> main
     return { error };
   };
 

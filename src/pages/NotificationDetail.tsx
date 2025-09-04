@@ -2,7 +2,6 @@ import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import Button from "@/components/ui/button";
 import { useParams } from "react-router-dom";
-<<<<<<< HEAD
 import { useEffect, useRef } from "react";
 import { useNotification, useMarkNotificationRead } from "@/hooks/useMarketplace";
 import Breadcrumbs from "@/components/site/Breadcrumbs";
@@ -22,20 +21,6 @@ const NotificationDetail = () => {
     triedMarkRef.current = true;
     markRead.mutate({ id: n.id });
   }, [n?.id, n?.read_at, markRead]);
-=======
-import { useNotification, useMarkNotificationRead } from "@/hooks/useMarketplace";
-import Breadcrumbs from "@/components/site/Breadcrumbs";
-
-const NotificationDetail = () => {
-  const { id } = useParams();
-  const { data: n, isLoading } = useNotification(id);
-  const markRead = useMarkNotificationRead();
-
-  // Auto-mark as read on open
-  if (n && !n.read_at) {
-    markRead.mutate({ id: n.id });
-  }
->>>>>>> main
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50">
@@ -50,7 +35,6 @@ const NotificationDetail = () => {
           ) : (
             <div className="rounded-2xl border bg-white p-6">
               <h1 className="text-xl font-semibold text-slate-900">{n.title}</h1>
-<<<<<<< HEAD
               {n.body ? (
                 <p className="mt-2 text-slate-700">{n.body}</p>
               ) : (() => {
@@ -98,16 +82,10 @@ const NotificationDetail = () => {
                     : link === '/bookings' ? '/profile?section=bookings' : link;
                   return resolved ? <Button as="link" to={resolved} size="sm">View</Button> : null;
                 })()}
-=======
-              {n.body && <p className="mt-2 text-slate-700">{n.body}</p>}
+              </div>
               {n.data && (
                 <pre className="mt-3 rounded-md bg-slate-50 p-3 text-xs text-slate-700 overflow-auto">{JSON.stringify(n.data, null, 2)}</pre>
               )}
-              <div className="mt-4 flex gap-2">
-                {!n.read_at && <Button size="sm" variant="secondary" onClick={() => markRead.mutate({ id: n.id })}>Mark as read</Button>}
-                {n.link_url && <Button as="link" to={n.link_url} size="sm">Open link</Button>}
->>>>>>> main
-              </div>
             </div>
           )}
         </div>

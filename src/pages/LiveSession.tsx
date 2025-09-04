@@ -1,37 +1,75 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable no-empty */
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
-import { Video, Mic, MicOff, VideoOff, PhoneOff, Users, Send, Paperclip, Smile, Star, X, MonitorUp, MonitorX, Settings, Maximize2, Minimize2, MessageSquare, UsersRound } from "lucide-react";
+import {
+  Video,
+  Mic,
+  MicOff,
+  VideoOff,
+  PhoneOff,
+  Users,
+  Send,
+  Paperclip,
+  Smile,
+  Star,
+  X,
+  MonitorUp,
+  MonitorX,
+  Settings,
+  Maximize2,
+  Minimize2,
+  MessageSquare,
+  UsersRound,
+} from "lucide-react";
 import { addRating } from "@/lib/ratings";
 import { addFeedback } from "@/lib/feedback";
-<<<<<<< HEAD
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAgora } from "@/hooks/useAgora";
+import { useCreateFeedback } from "@/hooks/useMarketplace";
 import { fetchAgoraToken } from "@/lib/agora";
 import { supabase } from "@/integrations/supabase/client";
 import { simpleSupabase } from "@/lib/simple-supabase";
-=======
-import { useState } from "react";
-import { useAuth } from "@/contexts/AuthContext";
->>>>>>> main
 
 const LiveSession = () => {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useAuth();
+
+  const createFeedback = useCreateFeedback();
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
   // Agora wiring
   const AGORA_APP_ID = import.meta.env.VITE_AGORA_APP_ID as string;
   const channel = `appt_${id}`; // use appointment id as channel name
-  const { joined, remoteUsers, join, leave, muteMic, muteCam, localVideoTrackRef, listCameras, listMicrophones, switchCamera, switchMic, startScreenShare, stopScreenShare, sharing, screenVideoTrackRef } = useAgora(AGORA_APP_ID);
+  const {
+    joined,
+    remoteUsers,
+    join,
+    leave,
+    muteMic,
+    muteCam,
+    localVideoTrackRef,
+    listCameras,
+    listMicrophones,
+    switchCamera,
+    switchMic,
+    startScreenShare,
+    stopScreenShare,
+    sharing,
+    screenVideoTrackRef,
+  } = useAgora(AGORA_APP_ID);
   const localVideoRef = useRef<HTMLDivElement | null>(null);
   const remoteVideoRef = useRef<HTMLDivElement | null>(null);
   const videoContainerRef = useRef<HTMLDivElement | null>(null);
-  const [devices, setDevices] = useState<{ cams: MediaDeviceInfo[]; mics: MediaDeviceInfo[] }>({ cams: [], mics: [] });
+  const [devices, setDevices] = useState<{
+    cams: MediaDeviceInfo[];
+    mics: MediaDeviceInfo[];
+  }>({ cams: [], mics: [] });
   const [selectedCam, setSelectedCam] = useState<string | undefined>(undefined);
   const [selectedMic, setSelectedMic] = useState<string | undefined>(undefined);
   const [settingsOpen, setSettingsOpen] = useState(true);
@@ -51,7 +89,9 @@ const LiveSession = () => {
   };
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [serviceName, setServiceName] = useState<string | null>(null);
-  const [serviceDurationSec, setServiceDurationSec] = useState<number | null>(null);
+  const [serviceDurationSec, setServiceDurationSec] = useState<number | null>(
+    null
+  );
   const [showEndingSoon, setShowEndingSoon] = useState<boolean>(false);
   const [endingWarned, setEndingWarned] = useState<boolean>(false);
   const endingHandledRef = useRef<boolean>(false);
@@ -68,11 +108,11 @@ const LiveSession = () => {
   };
   useEffect(() => {
     const handler = () => setIsFullscreen(!!document.fullscreenElement);
-    document.addEventListener('fullscreenchange', handler);
-    return () => document.removeEventListener('fullscreenchange', handler);
+    document.addEventListener("fullscreenchange", handler);
+    return () => document.removeEventListener("fullscreenchange", handler);
   }, []);
   const [localPrimary, setLocalPrimary] = useState<boolean>(false); // click-to-swap big/small
-  
+
   const [participantsOpen, setParticipantsOpen] = useState<boolean>(false);
   const [chatOpen, setChatOpen] = useState<boolean>(false);
 
@@ -87,14 +127,19 @@ const LiveSession = () => {
   };
 
   // Map of Agora uid (string) -> display info
-  const [uidToDisplay, setUidToDisplay] = useState<Record<string, { name: string; role?: string; avatar_url?: string }>>({});
+  const [uidToDisplay, setUidToDisplay] = useState<
+    Record<string, { name: string; role?: string; avatar_url?: string }>
+  >({});
   const [myAgoraUid, setMyAgoraUid] = useState<number | null>(null);
 
   const getRemoteDisplayName = (): string => {
-    const first = remoteUsers[0];
-    if (!first) return 'Remote';
-    const info = uidToDisplay[String(first.uid)];
-    return info?.name || `User ${String(first.uid)}`;
+    try {
+      const stored = sessionStorage.getItem("remote_display_name");
+      return stored || "Guest";
+    } catch {
+      /* noop */
+    }
+    return "Guest";
   };
 
   useEffect(() => {
@@ -118,36 +163,192 @@ const LiveSession = () => {
       try {
         if (!id) return;
         const { data, error } = await supabase
-          .from('appointments')
-          .select('patient_profile_id, date, start_time, appointment_status, service_id, services:services!appointments_service_id_fkey(name,duration_min, professionals:professionals!services_professional_id_fkey(profile_id))')
-          .eq('id', Number(id))
+          .from("appointments")
+          .select(
+            "patient_profile_id, date, start_time, appointment_status, service_id, services:services!appointments_service_id_fkey(name,duration_min, professionals:professionals!services_professional_id_fkey(profile_id))"
+          )
+          .eq("id", Number(id))
           .maybeSingle();
+        // Access control (strict): only the booking patient may join
+        const bookingPatientId = (data as any)?.patient_profile_id as
+          | string
+          | undefined;
+        const professionalId = (data?.services as any)?.professionals
+          ?.profile_id as string | undefined;
+        const me = profile?.id;
+
+        if (!me || !bookingPatientId || me !== bookingPatientId) {
+          navigate(
+            `/404?message=${encodeURIComponent(
+              "Sorry, you don't have any appointments. Please book one first."
+            )}`,
+            { replace: true }
+          );
+          return;
+        }
+
+        // Check appointment status - deny access for ended/missed appointments
+        const appointmentStatus = data?.appointment_status as
+          | string
+          | undefined;
+        if (
+          appointmentStatus === "no_show" ||
+          appointmentStatus === "completed" ||
+          appointmentStatus === "cancelled"
+        ) {
+          // Check if there's an approved reschedule request
+          const { data: rescheduleData, error: rescheduleError } =
+            await supabase
+              .from("reschedule_requests")
+              .select("id, status, new_date, new_start_time")
+              .eq("appointment_id", Number(id))
+              .eq("status", "approved")
+              .maybeSingle();
+
+          if (rescheduleError || !rescheduleData) {
+            navigate(
+              `/404?message=${encodeURIComponent(
+                `This appointment has been ${
+                  appointmentStatus === "no_show"
+                    ? "marked as no-show"
+                    : appointmentStatus === "completed"
+                    ? "completed"
+                    : "cancelled"
+                }. Please request a reschedule if needed.`
+              )}`,
+              { replace: true }
+            );
+            return;
+          }
+
+          // If there's an approved reschedule, update the appointment data
+          if (rescheduleData) {
+            // Update the appointment with new rescheduled time
+            const { error: updateError } = await supabase
+              .from("appointments")
+              .update({
+                date: rescheduleData.new_date,
+                start_time: rescheduleData.new_start_time,
+                appointment_status: "scheduled",
+              })
+              .eq("id", Number(id));
+
+            if (updateError) {
+              console.error(
+                "Error updating rescheduled appointment:",
+                updateError
+              );
+              navigate(
+                `/404?message=${encodeURIComponent(
+                  "Error processing rescheduled appointment. Please contact support."
+                )}`,
+                { replace: true }
+              );
+              return;
+            }
+
+            // Update local data for display
+            data.date = rescheduleData.new_date;
+            data.start_time = rescheduleData.new_start_time;
+            data.appointment_status = "scheduled";
+          }
+        }
+
         if (!error && data?.services?.name) {
           setServiceName(data.services.name as string);
         }
-        // Access control (strict): only the booking patient may join
-        const bookingPatientId = (data as any)?.patient_profile_id as string | undefined;
-        const me = profile?.id;
-        if (!me || !bookingPatientId || me !== bookingPatientId) {
-          navigate(`/404?message=${encodeURIComponent("Sorry, you don't have any appointments. Please book one first.")}`, { replace: true });
-          return;
-        }
         const durMin = (data?.services as any)?.duration_min;
-        if (typeof durMin === 'number' && durMin > 0) {
+        if (typeof durMin === "number" && durMin > 0) {
           setServiceDurationSec(Math.floor(durMin * 60));
+        }
+
+        // Additional check: Prevent access if appointment time has passed and no approved reschedule
+        // Reuse existing appointmentStatus declared above
+        const dateStr = data?.date as string | undefined;
+        const startStr = data?.start_time as string | undefined;
+
+        if (
+          appointmentStatus === "scheduled" &&
+          dateStr &&
+          startStr &&
+          typeof durMin === "number"
+        ) {
+          const [h, m] = (startStr || "00:00")
+            .split(":")
+            .map((s: string) => parseInt(s, 10));
+          const [Y, M, D] = dateStr
+            .split("-")
+            .map((s: string) => parseInt(s, 10));
+          const start = new Date(Y, M - 1, D, h, m, 0, 0);
+          const end = new Date(start.getTime() + durMin * 60 * 1000);
+
+          // If appointment time has passed, check for reschedule
+          if (Date.now() > end.getTime()) {
+            const { data: rescheduleData } = await supabase
+              .from("reschedule_requests")
+              .select("id, status")
+              .eq("appointment_id", Number(id))
+              .eq("status", "approved")
+              .maybeSingle();
+
+            if (!rescheduleData) {
+              navigate(
+                `/404?message=${encodeURIComponent(
+                  "This appointment time has passed. Please request a reschedule if needed."
+                )}`,
+                { replace: true }
+              );
+              return;
+            }
+          }
         }
         // If appointment already past its window and still scheduled -> mark no_show
         try {
           const apptStatus = data?.appointment_status as string | undefined;
           const dateStr = data?.date as string | undefined;
           const startStr = data?.start_time as string | undefined;
-          if (apptStatus === 'scheduled' && dateStr && startStr && typeof durMin === 'number') {
-            const [h, m] = (startStr || '00:00').split(':').map((s: string) => parseInt(s, 10));
-            const [Y, M, D] = dateStr.split('-').map((s: string) => parseInt(s, 10));
-            const start = new Date(Y, (M - 1), D, h, m, 0, 0);
+          if (
+            apptStatus === "scheduled" &&
+            dateStr &&
+            startStr &&
+            typeof durMin === "number"
+          ) {
+            const [h, m] = (startStr || "00:00")
+              .split(":")
+              .map((s: string) => parseInt(s, 10));
+            const [Y, M, D] = dateStr
+              .split("-")
+              .map((s: string) => parseInt(s, 10));
+            const start = new Date(Y, M - 1, D, h, m, 0, 0);
             const end = new Date(start.getTime() + durMin * 60 * 1000);
+
+            // Check if appointment time has passed
             if (Date.now() > end.getTime()) {
-              await (simpleSupabase as any).from('appointments').update({ appointment_status: 'no_show' }).eq('id', Number(id));
+              // Check if there's an approved reschedule request before marking as no_show
+              const { data: rescheduleData } = await supabase
+                .from("reschedule_requests")
+                .select("id, status, new_date, new_start_time")
+                .eq("appointment_id", Number(id))
+                .eq("status", "approved")
+                .maybeSingle();
+
+              if (rescheduleData) {
+                // Update appointment with rescheduled time instead of marking as no_show
+                await (simpleSupabase as any)
+                  .from("appointments")
+                  .update({
+                    date: rescheduleData.new_date,
+                    start_time: rescheduleData.new_start_time,
+                    appointment_status: "scheduled",
+                  })
+                  .eq("id", Number(id));
+              } else {
+                // No approved reschedule, mark as no_show
+                await (simpleSupabase as any)
+                  .from("appointments")
+                  .update({ appointment_status: "no_show" })
+                  .eq("id", Number(id));
+              }
             }
           }
         } catch {}
@@ -169,11 +370,13 @@ const LiveSession = () => {
       (async () => {
         try {
           if (id) {
-            const newStatus = remoteEverJoinedRef.current ? 'completed' : 'no_show';
+            const newStatus = remoteEverJoinedRef.current
+              ? "completed"
+              : "no_show";
             await (simpleSupabase as any)
-              .from('appointments')
+              .from("appointments")
               .update({ appointment_status: newStatus })
-              .eq('id', Number(id));
+              .eq("id", Number(id));
           }
         } finally {
           handleLeave();
@@ -194,45 +397,69 @@ const LiveSession = () => {
     const hasRemote = remoteUsers.length > 0;
     if (hasRemote) return;
     const timeout = window.setTimeout(async () => {
-      let endMsg: string = 'Session ended due to the other participant not joining in time.';
+      let endMsg: string =
+        "Session ended due to the other participant not joining in time.";
       try {
         if (!id) return;
         // Mark appointment as no_show
         await (simpleSupabase as any)
-          .from('appointments')
-          .update({ appointment_status: 'no_show' })
-          .eq('id', Number(id));
+          .from("appointments")
+          .update({ appointment_status: "no_show" })
+          .eq("id", Number(id));
         // Notify the other participant (both roles for safety)
         const appt = await (simpleSupabase as any)
-          .from('appointments')
-          .select(`patient_profile_id, services:services!appointments_service_id_fkey(professionals:professionals!services_professional_id_fkey(profile_id), name)`) 
-          .eq('id', Number(id))
+          .from("appointments")
+          .select(
+            `patient_profile_id, services:services!appointments_service_id_fkey(professionals:professionals!services_professional_id_fkey(profile_id), name)`
+          )
+          .eq("id", Number(id))
           .maybeSingle();
-        const patientProfileId = appt?.data?.patient_profile_id as string | null;
-        const professionalProfileId = appt?.data?.services?.professionals?.profile_id as string | null;
+        const patientProfileId = appt?.data?.patient_profile_id as
+          | string
+          | null;
+        const professionalProfileId = appt?.data?.services?.professionals
+          ?.profile_id as string | null;
         const svcName = appt?.data?.services?.name as string | null;
-        const title = 'Appointment marked no-show';
+        const title = "Appointment marked no-show";
         const currentProfileId = profile?.id;
-        const presentIsPatient = currentProfileId && patientProfileId && currentProfileId === patientProfileId;
-        if (presentIsPatient === true) endMsg = 'Session ended: the doctor did not join in time.';
-        if (presentIsPatient === false) endMsg = 'Session ended: the patient did not join in time.';
+        const presentIsPatient =
+          currentProfileId &&
+          patientProfileId &&
+          currentProfileId === patientProfileId;
+        if (presentIsPatient === true)
+          endMsg = "Session ended: the doctor did not join in time.";
+        if (presentIsPatient === false)
+          endMsg = "Session ended: the patient did not join in time.";
         // Patient notification
         if (patientProfileId) {
           const bodyForPatient = presentIsPatient
-            ? `The doctor didn't join your ${svcName || 'appointment'} in time.`
-            : `You didn't join your ${svcName || 'appointment'} in time.`;
-          await (simpleSupabase as any)
-            .from('notifications')
-            .insert({ recipient_profile_id: patientProfileId, recipient_role: null, title, body: bodyForPatient, link_url: '/profile?section=bookings&filter=no_show', data: { type: 'no_show', appointmentId: id } });
+            ? `The doctor didn't join your ${svcName || "appointment"} in time.`
+            : `You didn't join your ${svcName || "appointment"} in time.`;
+          await (simpleSupabase as any).from("notifications").insert({
+            recipient_profile_id: patientProfileId,
+            recipient_role: null,
+            title,
+            body: bodyForPatient,
+            link_url: "/profile?section=bookings&filter=no_show",
+            data: { type: "no_show", appointmentId: id },
+          });
         }
         // Professional notification
         if (professionalProfileId) {
-          const bodyForDoctor = presentIsPatient === true
-            ? `You didn't join your ${svcName || 'appointment'} in time.`
-            : `The patient didn't join your ${svcName || 'appointment'} in time.`;
-          await (simpleSupabase as any)
-            .from('notifications')
-            .insert({ recipient_profile_id: professionalProfileId, recipient_role: null, title, body: bodyForDoctor, link_url: '/doctor-dashboard?tab=appointments&sub=completed', data: { type: 'no_show', appointmentId: id } });
+          const bodyForDoctor =
+            presentIsPatient === true
+              ? `You didn't join your ${svcName || "appointment"} in time.`
+              : `The patient didn't join your ${
+                  svcName || "appointment"
+                } in time.`;
+          await (simpleSupabase as any).from("notifications").insert({
+            recipient_profile_id: professionalProfileId,
+            recipient_role: null,
+            title,
+            body: bodyForDoctor,
+            link_url: "/doctor-dashboard?tab=appointments&sub=completed",
+            data: { type: "no_show", appointmentId: id },
+          });
         }
       } finally {
         setEndMessage(endMsg);
@@ -244,30 +471,44 @@ const LiveSession = () => {
 
   // Keep videos in sync; supports click-to-swap big/small containers
   useEffect(() => {
-    const big = remoteVideoRef.current;    // main (large) container
-    const small = localVideoRef.current;   // small overlay container
+    const big = remoteVideoRef.current; // main (large) container
+    const small = localVideoRef.current; // small overlay container
     if (!big || !small) return;
 
     const getLabel = (track: any): string | null => {
       try {
-        if (!track) return null;
-        const mediaTrack = track.getMediaStreamTrack?.();
-        if (mediaTrack && typeof mediaTrack.label === 'string') return mediaTrack.label;
-        const label = track.getTrackLabel?.();
-        if (typeof label === 'string') return label;
-      } catch {}
+        const settings =
+          track && typeof track.getSettings === "function"
+            ? track.getSettings()
+            : undefined;
+        return settings?.label || null;
+      } catch {
+        /* noop */
+      }
       return null;
     };
 
-    const remoteScreen = remoteUsers.find(u => {
+    const remoteScreen = remoteUsers.find((u) => {
       const label = getLabel(u.videoTrack as any);
-      return !!u.videoTrack && typeof label === 'string' && label.toLowerCase().includes('screen');
+      return (
+        !!u.videoTrack &&
+        typeof label === "string" &&
+        label.toLowerCase().includes("screen")
+      );
     });
-    const remoteTrack = (remoteScreen?.videoTrack || remoteUsers[0]?.videoTrack) as any;
-    const localTrack = (sharing && screenVideoTrackRef?.current) ? screenVideoTrackRef.current as any : localVideoTrackRef.current as any;
+    const remoteTrack = (remoteScreen?.videoTrack ||
+      remoteUsers[0]?.videoTrack) as any;
+    const localTrack =
+      sharing && screenVideoTrackRef?.current
+        ? (screenVideoTrackRef.current as any)
+        : (localVideoTrackRef.current as any);
 
-    try { big.innerHTML = ''; } catch {}
-    try { small.innerHTML = ''; } catch {}
+    try {
+      big.innerHTML = "";
+    } catch {}
+    try {
+      small.innerHTML = "";
+    } catch {}
 
     if (localPrimary) {
       // Show local on big, remote on small
@@ -286,7 +527,7 @@ const LiveSession = () => {
     const hasRemote = remoteUsers.length > 0;
     if (joined && !hasRemote) {
       const t = window.setTimeout(() => {
-        setWaitingNotice('Waiting for the other participant to join…');
+        setWaitingNotice("Waiting for the other participant to join…");
       }, 90_000); // 1.5 minutes
       return () => clearTimeout(t);
     } else {
@@ -298,43 +539,57 @@ const LiveSession = () => {
   useEffect(() => {
     if (sessionEnded) return;
     if (joined && remoteUsers.length === 0) {
-      const iv = window.setInterval(() => setJoiningDots((n) => (n % 3) + 1), 500);
+      const iv = window.setInterval(
+        () => setJoiningDots((n) => (n % 3) + 1),
+        500
+      );
       return () => clearInterval(iv);
     }
   }, [joined, remoteUsers.length, sessionEnded]);
-  
+
   const handleJoin = async () => {
     try {
       setConnecting(true);
       setConnectError("");
       if (!AGORA_APP_ID) {
-        setConnectError('Missing VITE_AGORA_APP_ID in .env');
+        setConnectError("Missing VITE_AGORA_APP_ID in .env");
         setConnecting(false);
         return;
       }
       if (!id) {
-        setConnectError('Missing appointment id in URL');
+        setConnectError("Missing appointment id in URL");
         setConnecting(false);
         return;
       }
-      const uid = myAgoraUid ?? (profile?.id ? computeAgoraUid(String(profile.id)) : undefined);
+      const uid =
+        myAgoraUid ??
+        (profile?.id ? computeAgoraUid(String(profile.id)) : undefined);
       const token = await fetchAgoraToken(channel, uid);
       if (token === null) {
-        setConnectError('Token fetch failed (500/CORS). Ensure AGORA_APP_ID/AGORA_APP_CERTIFICATE secrets are set and the function returns JSON.');
+        setConnectError(
+          "Token fetch failed (500/CORS). Ensure AGORA_APP_ID/AGORA_APP_CERTIFICATE secrets are set and the function returns JSON."
+        );
         setConnecting(false);
         return;
       }
-      const { localVideoTrack } = await (join(channel, token, uid) || ({} as any));
+      const { localVideoTrack } = await (join(channel, token, uid) ||
+        ({} as any));
       if (selectedCam) await switchCamera(selectedCam);
       if (selectedMic) await switchMic(selectedMic);
       if (localVideoTrack && localVideoRef.current) {
         localVideoTrack.play(localVideoRef.current);
       }
       setSettingsOpen(false);
-      timerRef.current = window.setInterval(() => setSessionTimer((t) => t + 1), 1000) as unknown as number;
+      timerRef.current = window.setInterval(
+        () => setSessionTimer((t) => t + 1),
+        1000
+      ) as unknown as number;
     } catch (e: any) {
-      console.error('Join failed:', e);
-      setConnectError(e?.message || 'Failed to join session. Please check token/App ID and permissions.');
+      console.error("Join failed:", e);
+      setConnectError(
+        e?.message ||
+          "Failed to join session. Please check token/App ID and permissions."
+      );
     } finally {
       setConnecting(false);
     }
@@ -352,9 +607,12 @@ const LiveSession = () => {
     (async () => {
       try {
         if (!id) return;
+
+        // Normal flow - fetch from database
         const { data: appt, error } = await supabase
-          .from('appointments')
-          .select(`
+          .from("appointments")
+          .select(
+            `
             id,
             patient_profile_id,
             services:services!appointments_service_id_fkey(
@@ -363,27 +621,40 @@ const LiveSession = () => {
                 profile_id
               )
             )
-          `)
-          .eq('id', Number(id))
+          `
+          )
+          .eq("id", Number(id))
           .single();
         if (error || !appt) return;
 
         const patientProfileId: string | null = appt.patient_profile_id ?? null;
-        const professionalProfileId: string | null = appt?.services?.professionals?.profile_id ?? null;
-        const ids = [patientProfileId, professionalProfileId].filter(Boolean) as string[];
+        const professionalProfileId: string | null =
+          appt?.services?.professionals?.profile_id ?? null;
+        const ids = [patientProfileId, professionalProfileId].filter(
+          Boolean
+        ) as string[];
         if (ids.length === 0) return;
 
         const { data: profs } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, role, avatar_url')
-          .in('id', ids);
+          .from("profiles")
+          .select("id, first_name, last_name, role, avatar_url")
+          .in("id", ids);
 
-        const mapping: Record<string, { name: string; role?: string; avatar_url?: string }> = {};
+        const mapping: Record<
+          string,
+          { name: string; role?: string; avatar_url?: string }
+        > = {};
         (profs || []).forEach((p: any) => {
           const uidNum = computeAgoraUid(String(p.id));
           const uidKey = String(uidNum);
-          const fullName = [p.first_name, p.last_name].filter(Boolean).join(' ') || 'Participant';
-          mapping[uidKey] = { name: fullName, role: p.role || undefined, avatar_url: p.avatar_url || undefined };
+          const fullName =
+            [p.first_name, p.last_name].filter(Boolean).join(" ") ||
+            "Participant";
+          mapping[uidKey] = {
+            name: fullName,
+            role: p.role || undefined,
+            avatar_url: p.avatar_url || undefined,
+          };
         });
         setUidToDisplay(mapping);
       } catch (e) {
@@ -408,36 +679,46 @@ const LiveSession = () => {
       audioQuality: 5,
       connectionStability: 5,
       doctorProfessionalism: 5,
-      overallExperience: 5
+      overallExperience: 5,
     },
     wouldRecommend: true,
-    additionalComments: ""
+    additionalComments: "",
   });
 
   // Placeholder images: Patient (large), Doctor (small)
-  const patientImageUrl = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1200&auto=format&fit=crop";
-  const doctorImageUrl = "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=800&auto=format&fit=crop";
+  const patientImageUrl =
+    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=1200&auto=format&fit=crop";
+  const doctorImageUrl =
+    "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?q=80&w=800&auto=format&fit=crop";
 
   // Sidebar: improved participants
   const participants = [
     {
       id: "doctor",
-      name: profile ? `Dr. ${profile.first_name} ${profile.last_name}` : "Dr. Sarah Wilson",
+      name: profile
+        ? `Dr. ${profile.first_name} ${profile.last_name}`
+        : "Dr. Sarah Wilson",
       role: profile?.specialization || profile?.profession || "Doctor",
       avatar: profile?.avatar_url || doctorImageUrl,
-      online: true
+      online: true,
     },
     {
       id: "patient",
       name: "Live Patient",
       role: "Patient",
       avatar: patientImageUrl,
-      online: true
-    }
+      online: true,
+    },
   ];
 
   // Realtime chat via Supabase Realtime broadcast
-  type ChatMessage = { id: string; senderId: string; senderName: string; text: string; time: string };
+  type ChatMessage = {
+    id: string;
+    senderId: string;
+    senderName: string;
+    text: string;
+    time: string;
+  };
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState("");
   const chatChannelRef = useRef<any>(null);
@@ -446,7 +727,7 @@ const LiveSession = () => {
   const chatInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
   useEffect(() => {
@@ -460,7 +741,7 @@ const LiveSession = () => {
     try {
       const ch = supabase.channel(`live_chat_${id}`);
       chatChannelRef.current = ch;
-      ch.on('broadcast', { event: 'message' }, (payload: any) => {
+      ch.on("broadcast", { event: "message" }, (payload: any) => {
         const msg = payload?.payload as ChatMessage | undefined;
         if (!msg || !msg.text) return;
         // Ignore echoes of our own message (we already optimistically added)
@@ -468,26 +749,41 @@ const LiveSession = () => {
         // Basic de-duplication by id
         if (messagesRef.current.has(msg.id)) return;
         messagesRef.current.add(msg.id);
-        setMessages(prev => [...prev, msg]);
+        setMessages((prev) => [...prev, msg]);
       }).subscribe();
     } catch {}
-    return () => { try { chatChannelRef.current?.unsubscribe(); } catch {}; chatChannelRef.current = null; };
+    return () => {
+      try {
+        chatChannelRef.current?.unsubscribe();
+      } catch {}
+      chatChannelRef.current = null;
+    };
   }, [id, profile?.id]);
 
   const handleSend = async () => {
     const text = draft.trim();
     if (!text || !id || !profile?.id) return;
-    const senderName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'User';
+    const senderName =
+      `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "User";
     const msg: ChatMessage = {
       id: `m_${Date.now()}`,
       senderId: profile.id,
       senderName,
       text,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
-    setMessages(prev => [...prev, msg]);
+    setMessages((prev) => [...prev, msg]);
     setDraft("");
-    try { await chatChannelRef.current?.send({ type: 'broadcast', event: 'message', payload: msg }); } catch {}
+    try {
+      await chatChannelRef.current?.send({
+        type: "broadcast",
+        event: "message",
+        payload: msg,
+      });
+    } catch {}
   };
 
   const handleEndSession = () => {
@@ -496,53 +792,97 @@ const LiveSession = () => {
   };
 
   const handleRatingChange = (rating: number) => {
-    setFeedback(prev => ({ ...prev, rating }));
+    setFeedback((prev) => ({ ...prev, rating }));
   };
 
-  const handleQualityChange = (metric: keyof typeof feedback.sessionQuality, value: number) => {
-    setFeedback(prev => ({
+  const handleQualityChange = (
+    metric: keyof typeof feedback.sessionQuality,
+    value: number
+  ) => {
+    setFeedback((prev) => ({
       ...prev,
       sessionQuality: {
         ...prev.sessionQuality,
-        [metric]: value
-      }
+        [metric]: value,
+      },
     }));
   };
 
-  const handleFeedbackSubmit = () => {
+  const handleFeedbackSubmit = async () => {
     // Validate required fields
     if (feedback.rating === 0) {
       alert("Please provide an overall rating before submitting.");
       return;
     }
-    
-    // Here you would typically send the feedback to your backend
-    console.log("Feedback submitted:", feedback);
-    // Persist rating to local overrides, if we can infer professional id
-    const apptId = Number(id);
-    // Prefer profId from query params; fallback to sessionStorage mapping
-    const params = new URLSearchParams(location.search);
-    const profIdFromQuery = params.get("profId");
-    const profIdRaw = profIdFromQuery ?? sessionStorage.getItem(`live_session_prof_${apptId}`);
-    const profId = profIdRaw ? Number(profIdRaw) : NaN;
-    if (Number.isFinite(profId)) {
+
+    if (!profile?.id) {
+      alert("Please log in to submit feedback.");
+      return;
+    }
+
+    try {
+      // Get professional ID from query params or session storage
+      const apptId = Number(id);
+      const params = new URLSearchParams(location.search);
+      const profIdFromQuery = params.get("profId");
+      const profIdRaw =
+        profIdFromQuery ??
+        sessionStorage.getItem(`live_session_prof_${apptId}`);
+      const profId = profIdRaw ? Number(profIdRaw) : NaN;
+
+      if (!Number.isFinite(profId)) {
+        alert("Unable to identify the professional. Please try again.");
+        return;
+      }
+
+      // Get professional record to get the professional_id (UUID)
+      const { data: professionalData, error: profError } = await supabase
+        .from("professionals")
+        .select("id")
+        .eq("id", profId.toString())
+        .single();
+
+      if (profError || !professionalData) {
+        console.error("Error getting professional data:", profError);
+        alert("Unable to save feedback. Please try again.");
+        return;
+      }
+
+      // Save feedback to database
+      await createFeedback.mutateAsync({
+        professionalId: professionalData.id,
+        patientProfileId: profile.id,
+        appointmentId: apptId,
+        rating: feedback.rating,
+        feedbackText: feedback.feedbackText,
+        additionalComments: feedback.additionalComments,
+        wouldRecommend: feedback.wouldRecommend,
+        sessionQuality: feedback.sessionQuality,
+      });
+
+      // Also save to localStorage for backward compatibility
       addRating(profId, feedback.rating);
       addFeedback(profId, {
         id: `fb_${Date.now()}`,
         appointmentId: apptId,
-        patientName: profile ? `${profile.first_name} ${profile.last_name}` : "You", // Use profile name if available
+        patientName: profile
+          ? `${profile.first_name} ${profile.last_name}`
+          : "You",
         createdAt: new Date().toISOString(),
         rating: feedback.rating,
         feedbackText: feedback.feedbackText,
         additionalComments: feedback.additionalComments,
         wouldRecommend: feedback.wouldRecommend,
-        sessionQuality: feedback.sessionQuality
+        sessionQuality: feedback.sessionQuality,
       });
+
+      // Show success message and redirect
+      alert("Thank you for your feedback! Your session has ended.");
+      navigate(-1);
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      alert("Failed to submit feedback. Please try again.");
     }
-    
-    // Show success message and redirect
-    alert("Thank you for your feedback! Your session has ended.");
-    navigate(-1);
   };
 
   const handleSkipFeedback = () => {
@@ -552,7 +892,6 @@ const LiveSession = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-
       <Header />
       <main className="py-6">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -564,61 +903,124 @@ const LiveSession = () => {
                 ) : (
                   <span className="inline-flex items-center gap-2">
                     <span>{serviceName || "Session"}</span>
-                    <span className="text-[10px] leading-4 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">Live session</span>
+                    <span className="text-[10px] leading-4 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">
+                      Live session
+                    </span>
                   </span>
                 )}
               </h1>
               <p className="text-gray-600 text-sm flex items-center gap-2">
                 <span>Appointment ID: {id}</span>
-                <span className="relative inline-flex h-2.5 w-2.5" title={joined ? 'Connected' : 'Not connected'} aria-label={joined ? 'Connected' : 'Not connected'}>
-                  <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${joined ? 'bg-emerald-400' : 'bg-rose-400'} opacity-75`}></span>
-                  <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${joined ? 'bg-emerald-500' : 'bg-rose-500'}`}></span>
+                <span
+                  className="relative inline-flex h-2.5 w-2.5"
+                  title={joined ? "Connected" : "Not connected"}
+                  aria-label={joined ? "Connected" : "Not connected"}
+                >
+                  <span
+                    className={`animate-ping absolute inline-flex h-full w-full rounded-full ${
+                      joined ? "bg-emerald-400" : "bg-rose-400"
+                    } opacity-75`}
+                  ></span>
+                  <span
+                    className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                      joined ? "bg-emerald-500" : "bg-rose-500"
+                    }`}
+                  ></span>
                 </span>
               </p>
               {sessionEnded && (
-                <p className="text-amber-600 text-sm mt-1">Please provide feedback to complete your session</p>
+                <p className="text-amber-600 text-sm mt-1">
+                  Please provide feedback to complete your session
+                </p>
               )}
             </div>
-            <div className="text-sm text-gray-700">Duration: {Math.floor(sessionTimer / 60).toString().padStart(2,'0')}:{(sessionTimer % 60).toString().padStart(2,'0')}</div>
+            <div className="text-sm text-gray-700">
+              Duration:{" "}
+              {Math.floor(sessionTimer / 60)
+                .toString()
+                .padStart(2, "0")}
+              :{(sessionTimer % 60).toString().padStart(2, "0")}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
             {/* Video Area */}
-            <div ref={videoContainerRef} className="lg:col-span-3 bg-black rounded-xl overflow-hidden relative h-[420px] sm:h-[480px] lg:h-[640px] xl:h-[720px]">
+            <div
+              ref={videoContainerRef}
+              className="lg:col-span-3 bg-black rounded-xl overflow-hidden relative h-[420px] sm:h-[480px] lg:h-[640px] xl:h-[720px]"
+            >
               {/* Device Settings / Pre-join Modal */}
               {settingsOpen && (
                 <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-20">
                   <div className="bg-white rounded-xl w-full max-w-md mx-4 p-4">
                     <div className="flex items-center justify-between mb-3">
-                      <div className="text-sm font-semibold text-gray-900">Device Settings</div>
-                      <button onClick={() => setSettingsOpen(false)} className="text-gray-500 hover:text-gray-700"><X className="w-5 h-5" /></button>
+                      <div className="text-sm font-semibold text-gray-900">
+                        Device Settings
+                      </div>
+                      <button
+                        onClick={() => setSettingsOpen(false)}
+                        className="text-gray-500 hover:text-gray-700"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
                     </div>
                     {connectError && !joined && (
-                      <div className="rounded-md border border-rose-200 bg-rose-50 text-rose-700 text-xs px-2 py-1 mb-3">{connectError}</div>
+                      <div className="rounded-md border border-rose-200 bg-rose-50 text-rose-700 text-xs px-2 py-1 mb-3">
+                        {connectError}
+                      </div>
                     )}
                     <div className="space-y-3">
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">Camera</label>
-                        <select value={selectedCam} onChange={(e) => setSelectedCam(e.target.value)} className="w-full rounded-md border px-2 py-1 text-sm">
+                        <label className="block text-xs text-gray-600 mb-1">
+                          Camera
+                        </label>
+                        <select
+                          value={selectedCam}
+                          onChange={(e) => setSelectedCam(e.target.value)}
+                          className="w-full rounded-md border px-2 py-1 text-sm"
+                        >
                           {devices.cams.map((d) => (
-                            <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId}</option>
+                            <option key={d.deviceId} value={d.deviceId}>
+                              {d.label || d.deviceId}
+                            </option>
                           ))}
                         </select>
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-600 mb-1">Microphone</label>
-                        <select value={selectedMic} onChange={(e) => setSelectedMic(e.target.value)} className="w-full rounded-md border px-2 py-1 text-sm">
+                        <label className="block text-xs text-gray-600 mb-1">
+                          Microphone
+                        </label>
+                        <select
+                          value={selectedMic}
+                          onChange={(e) => setSelectedMic(e.target.value)}
+                          className="w-full rounded-md border px-2 py-1 text-sm"
+                        >
                           {devices.mics.map((d) => (
-                            <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId}</option>
+                            <option key={d.deviceId} value={d.deviceId}>
+                              {d.label || d.deviceId}
+                            </option>
                           ))}
                         </select>
                       </div>
                       {!joined ? (
-                        <button onClick={handleJoin} disabled={connecting} className={`w-full mt-1 px-3 py-2 rounded-lg text-white text-sm ${connecting ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}>
-                          {connecting ? 'Connecting…' : 'Join Session'}
+                        <button
+                          onClick={handleJoin}
+                          disabled={connecting}
+                          className={`w-full mt-1 px-3 py-2 rounded-lg text-white text-sm ${
+                            connecting
+                              ? "bg-blue-400 cursor-not-allowed"
+                              : "bg-blue-600 hover:bg-blue-700"
+                          }`}
+                        >
+                          {connecting ? "Connecting…" : "Join Session"}
                         </button>
                       ) : (
-                        <button onClick={applySettings} className="w-full mt-1 px-3 py-2 rounded-lg text-white text-sm bg-blue-600 hover:bg-blue-700">Apply & Close</button>
+                        <button
+                          onClick={applySettings}
+                          className="w-full mt-1 px-3 py-2 rounded-lg text-white text-sm bg-blue-600 hover:bg-blue-700"
+                        >
+                          Apply & Close
+                        </button>
                       )}
                     </div>
                   </div>
@@ -636,7 +1038,10 @@ const LiveSession = () => {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
                     </span>
-                    <span>Waiting for the other participant to join{'.'.repeat(joiningDots)}</span>
+                    <span>
+                      Waiting for the other participant to join
+                      {".".repeat(joiningDots)}
+                    </span>
                   </div>
                 </div>
               )}
@@ -651,60 +1056,154 @@ const LiveSession = () => {
                   {waitingNotice}
                 </div>
               )}
-              
+
               {/* Session Ended Overlay */}
               {sessionEnded && (
                 <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
                   <div className="text-center text-white">
                     <div className="text-4xl mb-4">📹</div>
-                    <h3 className="text-xl font-semibold mb-2">Session Ended</h3>
-                    <p className="text-sm opacity-80">{endMessage || 'Please provide feedback to complete your session'}</p>
+                    <h3 className="text-xl font-semibold mb-2">
+                      Session Ended
+                    </h3>
+                    <p className="text-sm opacity-80">
+                      {endMessage ||
+                        "Please provide feedback to complete your session"}
+                    </p>
                   </div>
                 </div>
               )}
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-white/10 backdrop-blur rounded-lg px-3 py-1 text-white text-xs">
-                {localPrimary ? 'You' : getRemoteDisplayName()}
+                {localPrimary ? "You" : getRemoteDisplayName()}
               </div>
               {/* Small overlay (click to swap) */}
-              <div className="absolute top-4 right-4 w-40 h-28 lg:w-56 lg:h-36 bg-white/10 backdrop-blur rounded-md overflow-hidden cursor-pointer"
-                   onClick={() => setLocalPrimary(prev => !prev)}
-                   title="Swap views">
+              <div
+                className="absolute top-4 right-4 w-40 h-28 lg:w-56 lg:h-36 bg-white/10 backdrop-blur rounded-md overflow-hidden cursor-pointer"
+                onClick={() => setLocalPrimary((prev) => !prev)}
+                title="Swap views"
+              >
                 <div ref={localVideoRef} className="w-full h-full" />
-                <div className="absolute bottom-1 left-1 bg-white/20 rounded px-1.5 py-0.5 text-[10px] text-white">{localPrimary ? getRemoteDisplayName() : 'You'}</div>
+                <div className="absolute bottom-1 left-1 bg-white/20 rounded px-1.5 py-0.5 text-[10px] text-white">
+                  {localPrimary ? getRemoteDisplayName() : "You"}
+                </div>
               </div>
 
               {/* Controls overlay inside player */}
               {!sessionEnded && (
                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
                   <div className="flex items-center gap-2 bg-white/10 backdrop-blur border border-white/20 rounded-full p-2">
-                    <button onClick={() => setSettingsOpen(true)} className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-gray-700 hover:opacity-90" title="Settings" aria-label="Settings">
+                    <button
+                      onClick={() => setSettingsOpen(true)}
+                      className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-gray-700 hover:opacity-90"
+                      title="Settings"
+                      aria-label="Settings"
+                    >
                       <Settings className="w-4 h-4" />
                     </button>
-                    <button onClick={() => setChatOpen((v) => !v)} className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${chatOpen ? 'bg-blue-600' : 'bg-gray-700'} hover:opacity-90`} title={chatOpen ? 'Hide Chat' : 'Show Chat'} aria-label={chatOpen ? 'Hide Chat' : 'Show Chat'}>
+                    <button
+                      onClick={() => setChatOpen((v) => !v)}
+                      className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${
+                        chatOpen ? "bg-blue-600" : "bg-gray-700"
+                      } hover:opacity-90`}
+                      title={chatOpen ? "Hide Chat" : "Show Chat"}
+                      aria-label={chatOpen ? "Hide Chat" : "Show Chat"}
+                    >
                       <MessageSquare className="w-4 h-4" />
                     </button>
-                    <button onClick={() => setParticipantsOpen((v) => !v)} className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${participantsOpen ? 'bg-blue-600' : 'bg-gray-700'} hover:opacity-90`} title={participantsOpen ? 'Hide Participants' : 'Show Participants'} aria-label={participantsOpen ? 'Hide Participants' : 'Show Participants'}>
+                    <button
+                      onClick={() => setParticipantsOpen((v) => !v)}
+                      className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${
+                        participantsOpen ? "bg-blue-600" : "bg-gray-700"
+                      } hover:opacity-90`}
+                      title={
+                        participantsOpen
+                          ? "Hide Participants"
+                          : "Show Participants"
+                      }
+                      aria-label={
+                        participantsOpen
+                          ? "Hide Participants"
+                          : "Show Participants"
+                      }
+                    >
                       <UsersRound className="w-4 h-4" />
                     </button>
-                    <button onClick={async () => { const next = !muted; setMuted(next); await muteMic(next); }} className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${muted ? 'bg-gray-600' : 'bg-blue-600'} hover:opacity-90`} title={muted ? 'Unmute' : 'Mute'} aria-label={muted ? 'Unmute' : 'Mute'}>
-                      {muted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    <button
+                      onClick={async () => {
+                        const next = !muted;
+                        setMuted(next);
+                        await muteMic(next);
+                      }}
+                      className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${
+                        muted ? "bg-gray-600" : "bg-blue-600"
+                      } hover:opacity-90`}
+                      title={muted ? "Unmute" : "Mute"}
+                      aria-label={muted ? "Unmute" : "Mute"}
+                    >
+                      {muted ? (
+                        <MicOff className="w-4 h-4" />
+                      ) : (
+                        <Mic className="w-4 h-4" />
+                      )}
                     </button>
-                    <button onClick={async () => { const next = !cameraOff; setCameraOff(next); await muteCam(next); }} className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${cameraOff ? 'bg-gray-600' : 'bg-blue-600'} hover:opacity-90`} title={cameraOff ? 'Start Camera' : 'Stop Camera'} aria-label={cameraOff ? 'Start Camera' : 'Stop Camera'}>
-                      {cameraOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                    <button
+                      onClick={async () => {
+                        const next = !cameraOff;
+                        setCameraOff(next);
+                        await muteCam(next);
+                      }}
+                      className={`px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 ${
+                        cameraOff ? "bg-gray-600" : "bg-blue-600"
+                      } hover:opacity-90`}
+                      title={cameraOff ? "Start Camera" : "Stop Camera"}
+                      aria-label={cameraOff ? "Start Camera" : "Stop Camera"}
+                    >
+                      {cameraOff ? (
+                        <VideoOff className="w-4 h-4" />
+                      ) : (
+                        <Video className="w-4 h-4" />
+                      )}
                     </button>
-                    <button onClick={toggleFullscreen} className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-gray-700 hover:opacity-90" title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'} aria-label={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}>
-                      {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                    <button
+                      onClick={toggleFullscreen}
+                      className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-gray-700 hover:opacity-90"
+                      title={
+                        isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"
+                      }
+                      aria-label={
+                        isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"
+                      }
+                    >
+                      {isFullscreen ? (
+                        <Minimize2 className="w-4 h-4" />
+                      ) : (
+                        <Maximize2 className="w-4 h-4" />
+                      )}
                     </button>
                     {!sharing ? (
-                      <button onClick={startScreenShare} className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-purple-600 hover:bg-purple-700" title="Share Screen" aria-label="Share Screen">
+                      <button
+                        onClick={startScreenShare}
+                        className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+                        title="Share Screen"
+                        aria-label="Share Screen"
+                      >
                         <MonitorUp className="w-4 h-4" />
                       </button>
                     ) : (
-                      <button onClick={stopScreenShare} className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-purple-600 hover:bg-purple-700" title="Stop Share" aria-label="Stop Share">
+                      <button
+                        onClick={stopScreenShare}
+                        className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+                        title="Stop Share"
+                        aria-label="Stop Share"
+                      >
                         <MonitorX className="w-4 h-4" />
                       </button>
                     )}
-                    <button onClick={handleLeave} className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-rose-600 hover:bg-rose-700" title="End Session" aria-label="End Session">
+                    <button
+                      onClick={handleLeave}
+                      className="px-3 py-2 rounded-full text-white text-sm flex items-center gap-2 bg-rose-600 hover:bg-rose-700"
+                      title="End Session"
+                      aria-label="End Session"
+                    >
                       <PhoneOff className="w-4 h-4" />
                     </button>
                   </div>
@@ -715,90 +1214,154 @@ const LiveSession = () => {
             {/* Sidebar */}
             <aside className="lg:col-span-1 space-y-4">
               {(participantsOpen || remoteUsers.length > 0) && (
-              <div className="bg-white rounded-xl border p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">Participants</h3>
-                  <span className="text-xs text-gray-500">{remoteUsers.length + 1}</span>
-                </div>
-                <ul className="space-y-3">
-                  <li className="flex items-center gap-3">
-                    <div className="relative">
-                      <img src={profile?.avatar_url || doctorImageUrl} alt="You" className="w-9 h-9 rounded-full object-cover" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-sm font-medium text-gray-900 truncate">You</div>
-                      <div className="text-[11px] inline-flex px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 mt-0.5">{profile?.role || 'Doctor/Patient'}</div>
-                    </div>
-                  </li>
-                  {remoteUsers.map(u => {
-                    const info = uidToDisplay[String(u.uid)];
-                    const displayName = info?.name || `User ${String(u.uid)}`;
-                    const displayRole = info?.role || 'Connected';
-                    const avatarSrc = info?.avatar_url || ((displayRole === 'professional' || displayRole === 'doctor') ? doctorImageUrl : patientImageUrl);
-                    return (
-                    <li key={String(u.uid)} className="flex items-center gap-3">
-                        <div className="relative">
-                          <img src={avatarSrc} alt={displayName} className="w-9 h-9 rounded-full object-cover" />
-                        </div>
+                <div className="bg-white rounded-xl border p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      Participants
+                    </h3>
+                    <span className="text-xs text-gray-500">
+                      {remoteUsers.length + 1}
+                    </span>
+                  </div>
+                  <ul className="space-y-3">
+                    <li className="flex items-center gap-3">
+                      <div className="relative">
+                        <img
+                          src={profile?.avatar_url || doctorImageUrl}
+                          alt="You"
+                          className="w-9 h-9 rounded-full object-cover"
+                        />
+                      </div>
                       <div className="min-w-0">
-                          <div className="text-sm font-medium text-gray-900 truncate">{displayName}</div>
-                          <div className="text-[11px] inline-flex px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 mt-0.5">{displayRole}</div>
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          You
+                        </div>
+                        <div className="text-[11px] inline-flex px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 mt-0.5">
+                          {profile?.role || "Doctor/Patient"}
+                        </div>
                       </div>
                     </li>
-                    );
-                  })}
-                </ul>
-              </div>
+                    {remoteUsers.map((u) => {
+                      const info = uidToDisplay[String(u.uid)];
+
+                      const displayName = info?.name || `User ${String(u.uid)}`;
+                      const displayRole = info?.role || "Connected";
+                      const avatarSrc =
+                        info?.avatar_url ||
+                        (displayRole === "professional" ||
+                        displayRole === "doctor"
+                          ? doctorImageUrl
+                          : patientImageUrl);
+                      return (
+                        <li
+                          key={String(u.uid)}
+                          className="flex items-center gap-3"
+                        >
+                          <div className="relative">
+                            <img
+                              src={avatarSrc}
+                              alt={displayName}
+                              className="w-9 h-9 rounded-full object-cover"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-sm font-medium text-gray-900 truncate">
+                              {displayName}
+                            </div>
+                            <div className="text-[11px] inline-flex px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 mt-0.5">
+                              {displayRole}
+                            </div>
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               )}
 
               {chatOpen && (
-              <div className="bg-white rounded-xl border p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-semibold text-gray-900">Chat</h3>
-                  <Users className="w-4 h-4 text-gray-500" />
-                </div>
-                <div className="h-56 bg-gray-50 border rounded p-3 overflow-y-auto space-y-2">
-                  {messages.map(m => {
-                    const mine = m.senderId === profile?.id;
-                    return (
-                      <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${mine ? 'bg-blue-600 text-white' : 'bg-white border text-gray-800'}`}>
-                          <div className={`mb-1 text-[11px] ${mine ? 'text-blue-100' : 'text-gray-500'}`}>
-                            <span>{mine ? 'You' : m.senderName}</span>
-                            <span className={`ml-2 ${mine ? 'text-blue-100' : 'text-gray-400'}`}>• {m.time}</span>
-                          </div>
-                        <div>{m.text}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {messages.length === 0 && (
-                    <div className="text-xs text-gray-500">No messages</div>
-                  )}
-                  <div ref={messagesEndRef} />
-                </div>
-                <div className="mt-3 flex items-center gap-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0 border rounded-lg px-2 py-1 bg-white">
-                    <button className="p-2 rounded-md text-gray-500 hover:bg-gray-50" title="Attach">
-                      <Paperclip className="w-4 h-4" />
-                    </button>
-                    <button className="p-2 rounded-md text-gray-500 hover:bg-gray-50" title="Emoji">
-                      <Smile className="w-4 h-4" />
-                    </button>
-                    <input
-                      value={draft}
-                      onChange={(e) => setDraft(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === 'Enter') handleSend(); }}
-                      ref={chatInputRef}
-                      className="flex-1 min-w-0 bg-transparent border-0 outline-none focus:ring-0 text-sm"
-                      placeholder="Type a message..."
-                    />
+                <div className="bg-white rounded-xl border p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-900">
+                      Chat
+                    </h3>
+                    <Users className="w-4 h-4 text-gray-500" />
                   </div>
-                  <button onClick={handleSend} className="shrink-0 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 flex items-center gap-2">
-                    <Send className="w-4 h-4" /> <span className="hidden sm:inline">Send</span>
-                  </button>
+                  <div className="h-56 bg-gray-50 border rounded p-3 overflow-y-auto space-y-2">
+                    {messages.map((m) => {
+                      const mine = m.senderId === profile?.id;
+                      return (
+                        <div
+                          key={m.id}
+                          className={`flex ${
+                            mine ? "justify-end" : "justify-start"
+                          }`}
+                        >
+                          <div
+                            className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${
+                              mine
+                                ? "bg-blue-600 text-white"
+                                : "bg-white border text-gray-800"
+                            }`}
+                          >
+                            <div
+                              className={`mb-1 text-[11px] ${
+                                mine ? "text-blue-100" : "text-gray-500"
+                              }`}
+                            >
+                              <span>{mine ? "You" : m.senderName}</span>
+                              <span
+                                className={`ml-2 ${
+                                  mine ? "text-blue-100" : "text-gray-400"
+                                }`}
+                              >
+                                • {m.time}
+                              </span>
+                            </div>
+                            <div>{m.text}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {messages.length === 0 && (
+                      <div className="text-xs text-gray-500">No messages</div>
+                    )}
+                    <div ref={messagesEndRef} />
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0 border rounded-lg px-2 py-1 bg-white">
+                      <button
+                        className="p-2 rounded-md text-gray-500 hover:bg-gray-50"
+                        title="Attach"
+                      >
+                        <Paperclip className="w-4 h-4" />
+                      </button>
+                      <button
+                        className="p-2 rounded-md text-gray-500 hover:bg-gray-50"
+                        title="Emoji"
+                      >
+                        <Smile className="w-4 h-4" />
+                      </button>
+                      <input
+                        value={draft}
+                        onChange={(e) => setDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSend();
+                        }}
+                        ref={chatInputRef}
+                        className="flex-1 min-w-0 bg-transparent border-0 outline-none focus:ring-0 text-sm"
+                        placeholder="Type a message..."
+                      />
+                    </div>
+                    <button
+                      onClick={handleSend}
+                      className="shrink-0 px-3 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <Send className="w-4 h-4" />{" "}
+                      <span className="hidden sm:inline">Send</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
               )}
             </aside>
           </div>
@@ -812,30 +1375,41 @@ const LiveSession = () => {
             {/* Modal Header */}
             <div className="px-6 py-4 border-b">
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xl font-semibold text-gray-900">Session Feedback</h2>
-                <button 
-                  onClick={handleSkipFeedback} 
+                <h2 className="text-xl font-semibold text-gray-900">
+                  Session Feedback
+                </h2>
+                <button
+                  onClick={handleSkipFeedback}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
-              
+
               {/* Progress Bar */}
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
+                <div
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                  style={{ 
-                    width: `${Math.min(100, (feedback.rating > 0 ? 20 : 0) + 
-                      (feedback.feedbackText ? 20 : 0) + 
-                      (feedback.additionalComments ? 20 : 0) + 
-                      (feedback.wouldRecommend !== undefined ? 20 : 0) + 
-                      (Object.values(feedback.sessionQuality).some(v => v !== 5) ? 20 : 0))}%` 
+                  style={{
+                    width: `${Math.min(
+                      100,
+                      (feedback.rating > 0 ? 20 : 0) +
+                        (feedback.feedbackText ? 20 : 0) +
+                        (feedback.additionalComments ? 20 : 0) +
+                        (feedback.wouldRecommend !== undefined ? 20 : 0) +
+                        (Object.values(feedback.sessionQuality).some(
+                          (v) => v !== 5
+                        )
+                          ? 20
+                          : 0)
+                    )}%`,
                   }}
                 ></div>
               </div>
               <p className="text-xs text-gray-500 mt-2">
-                {feedback.rating === 0 ? "Start by rating your session" : "Almost done! Complete the remaining fields"}
+                {feedback.rating === 0
+                  ? "Start by rating your session"
+                  : "Almost done! Complete the remaining fields"}
               </p>
             </div>
 
@@ -844,19 +1418,25 @@ const LiveSession = () => {
               <div className="space-y-6">
                 {/* Overall Rating */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Overall Session Rating</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Overall Session Rating
+                  </label>
                   <div className="flex items-center gap-2">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
                         onClick={() => handleRatingChange(star)}
                         className={`p-2 rounded-lg transition-all duration-200 ${
-                          feedback.rating >= star 
-                            ? 'text-yellow-500 hover:text-yellow-600' 
-                            : 'text-gray-300 hover:text-gray-400'
+                          feedback.rating >= star
+                            ? "text-yellow-500 hover:text-yellow-600"
+                            : "text-gray-300 hover:text-gray-400"
                         }`}
                       >
-                        <Star className={`w-8 h-8 ${feedback.rating >= star ? 'fill-current' : ''}`} />
+                        <Star
+                          className={`w-8 h-8 ${
+                            feedback.rating >= star ? "fill-current" : ""
+                          }`}
+                        />
                       </button>
                     ))}
                   </div>
@@ -872,62 +1452,99 @@ const LiveSession = () => {
 
                 {/* Session Quality Metrics */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Session Quality</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Session Quality
+                  </label>
                   <div className="space-y-4">
-                    {Object.entries(feedback.sessionQuality).map(([metric, value]) => (
-                      <div key={metric} className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600 capitalize">
-                          {metric.replace(/([A-Z])/g, ' $1').trim()}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-500 w-8 text-right">{value}/5</span>
-                          <input
-                            type="range"
-                            min="1"
-                            max="5"
-                            value={value}
-                            onChange={(e) => handleQualityChange(metric as keyof typeof feedback.sessionQuality, parseInt(e.target.value))}
-                            className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-                          />
+                    {Object.entries(feedback.sessionQuality).map(
+                      ([metric, value]) => (
+                        <div
+                          key={metric}
+                          className="flex items-center justify-between"
+                        >
+                          <span className="text-sm text-gray-600 capitalize">
+                            {metric.replace(/([A-Z])/g, " $1").trim()}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-gray-500 w-8 text-right">
+                              {value}/5
+                            </span>
+                            <input
+                              type="range"
+                              min="1"
+                              max="5"
+                              value={value}
+                              onChange={(e) =>
+                                handleQualityChange(
+                                  metric as keyof typeof feedback.sessionQuality,
+                                  parseInt(e.target.value)
+                                )
+                              }
+                              className="w-24 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    )}
                   </div>
                 </div>
 
                 {/* Would Recommend */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Would you recommend this doctor?</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-3">
+                    Would you recommend this doctor?
+                  </label>
                   <div className="flex items-center gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
                         name="recommend"
                         checked={feedback.wouldRecommend}
-                        onChange={() => setFeedback(prev => ({ ...prev, wouldRecommend: true }))}
+                        onChange={() =>
+                          setFeedback((prev) => ({
+                            ...prev,
+                            wouldRecommend: true,
+                          }))
+                        }
                         className="text-blue-600"
                       />
-                      <span className="text-sm text-gray-700">Yes, definitely</span>
+                      <span className="text-sm text-gray-700">
+                        Yes, definitely
+                      </span>
                     </label>
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
                         name="recommend"
                         checked={!feedback.wouldRecommend}
-                        onChange={() => setFeedback(prev => ({ ...prev, wouldRecommend: false }))}
+                        onChange={() =>
+                          setFeedback((prev) => ({
+                            ...prev,
+                            wouldRecommend: false,
+                          }))
+                        }
                         className="text-blue-600"
                       />
-                      <span className="text-sm text-gray-700">No, not really</span>
+                      <span className="text-sm text-gray-700">
+                        No, not really
+                      </span>
                     </label>
                   </div>
                 </div>
 
                 {/* General Feedback */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">What went well in this session?</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    What went well in this session?
+                  </label>
                   <textarea
                     value={feedback.feedbackText}
-                    onChange={(e) => setFeedback(prev => ({ ...prev, feedbackText: e.target.value }))}
+                    onChange={(e) =>
+                      setFeedback((prev) => ({
+                        ...prev,
+                        feedbackText: e.target.value,
+                      }))
+                    }
                     placeholder="Share what you liked about the session, what was helpful, or any positive aspects..."
                     className="w-full p-3 border border-gray-300 rounded-lg resize-none h-24 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
@@ -935,10 +1552,17 @@ const LiveSession = () => {
 
                 {/* Additional Comments */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Additional Comments (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Additional Comments (Optional)
+                  </label>
                   <textarea
                     value={feedback.additionalComments}
-                    onChange={(e) => setFeedback(prev => ({ ...prev, additionalComments: e.target.value }))}
+                    onChange={(e) =>
+                      setFeedback((prev) => ({
+                        ...prev,
+                        additionalComments: e.target.value,
+                      }))
+                    }
                     placeholder="Any other feedback, suggestions for improvement, or additional thoughts..."
                     className="w-full p-3 border border-gray-300 rounded-lg resize-none h-24 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />

@@ -37,11 +37,10 @@ const ProfessionalSignup = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-<<<<<<< HEAD
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-=======
 
->>>>>>> main
+
+
   const { signUp, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -124,13 +123,12 @@ const ProfessionalSignup = () => {
       console.log('Signup successful - proceeding with success flow');
 
       // Account created successfully - the database trigger will create the profile when user confirms email
-<<<<<<< HEAD
       // Show success modal and redirect after 3 seconds
       setShowSuccessModal(true);
       setTimeout(() => {
         navigate('/login');
       }, 3000);
-=======
+
       toast({
         title: "Professional Account Created!",
         description: "Please check your email and verify your account. Wellness will review your profile and add a verified tag within 24-48 hours.",
@@ -140,7 +138,7 @@ const ProfessionalSignup = () => {
       setTimeout(() => {
         navigate('/login');
       }, 2000);
->>>>>>> main
+
 
     } catch (error: unknown) {
       console.error('Signup error:', error);

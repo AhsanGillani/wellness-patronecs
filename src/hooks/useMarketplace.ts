@@ -84,17 +84,24 @@ export interface BlogPost {
 }
 
 // Profiles
-export function useProfiles() {
+export function useProfiles(page = 1, pageSize = 20) {
+  const from = Math.max(0, (page - 1) * pageSize);
+  const to = from + pageSize - 1;
   return useQuery({
-    queryKey: ["profiles"],
+    queryKey: ["profiles", page, pageSize],
     queryFn: async () => {
       const { data, error } = await simpleSupabase
         .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .select("id,user_id,role,slug,first_name,last_name,email,avatar_url,created_at")
+        .order("created_at", { ascending: false })
+        .range(from, to);
       if (error) throw error;
       return data || [];
     },
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -109,52 +116,102 @@ export function useProfessional(userId: string) {
   });
 }
 
-export function useProfessionals() {
-  return useQuery({
-    queryKey: ["professionals"],
+export interface ProfessionalListItem {
+  id: string;
+  slug: string;
+  name: string;
+  title: string | null;
+  specialization: string | null;
+  years: number;
+  price_per_session: number | null;
+  starting_price_cents?: number | null;
+  specialty_label?: string | null;
+  verification: string | null;
+  location: string | null;
+  avatar_url: string | null;
+  profile_slug: string | null;
+  profile_id: string | null;
+  rating: number;
+  reviews: number;
+}
+
+export function useProfessionals(page = 1, pageSize = 20) {
+  const from = Math.max(0, (page - 1) * pageSize);
+  const to = from + pageSize - 1;
+  return useQuery<ProfessionalListItem[]>({
+    queryKey: ["professionals", page, pageSize],
     queryFn: async () => {
-      console.log('Fetching professionals...');
-      
-      // First, let's check what's in the profiles table
-      const { data: allProfiles, error: allError } = await simpleSupabase
-        .from("profiles")
-        .select("id, role, first_name, last_name, email")
-        .limit(100);
-      
-      console.log('All profiles:', allProfiles);
-      
-      // Get profiles with role 'professional'
-      const { data: profilesData, error: profilesError } = await simpleSupabase
-        .from("profiles")
-        .select("*")
-        .eq("role", "professional")
-        .order("created_at", { ascending: false });
-      
-      console.log('Profiles with role professional:', profilesData);
-      
-      if (profilesError) throw profilesError;
-      
-      // For now, return just the profiles data
-      // We'll add the professionals join later once we confirm the basic query works
-      return profilesData || [];
+      // Lightweight select: avoid nested services/categories to prevent timeouts
+      const { data, error } = await (simpleSupabase as any)
+        .from("professionals")
+        .select(`
+          id,
+          slug,
+          profession,
+          specialization,
+          years_experience,
+          price_per_session,
+          verification,
+          location,
+          profile_id,
+          profile:profiles!inner(first_name, last_name, avatar_url, slug)
+        `)
+        .order("created_at", { ascending: false })
+        .range(from, to);
+      if (error) throw error;
+
+      const mapped: ProfessionalListItem[] = (data || []).map((row: any) => {
+        const fullName = `${row.profile?.first_name ?? ""} ${row.profile?.last_name ?? ""}`.trim();
+        return {
+          id: String(row.id),
+          slug: row.slug,
+          name: fullName || "Professional",
+          title: row.profession || null,
+          specialization: row.specialization || null,
+          years: row.years_experience ?? 0,
+          price_per_session: row.price_per_session ?? null,
+          starting_price_cents: row.price_per_session ?? null, // compute precisely in a separate query if needed
+          specialty_label: null,
+          verification: row.verification || null,
+          location: row.location || null,
+          avatar_url: row.profile?.avatar_url || null,
+          profile_slug: row.profile?.slug || null,
+          profile_id: row.profile_id ?? null,
+          rating: 0,
+          reviews: 0,
+        };
+      });
+
+      return mapped;
     },
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 
-<<<<<<< HEAD
-export function useServices(limit = 50) {
+export function useServices(page = 1, pageSize = 20) {
+  const from = Math.max(0, (page - 1) * pageSize);
+  const to = from + pageSize - 1;
   return useQuery({
-    queryKey: ["services", limit],
+    queryKey: ["services", page, pageSize],
     queryFn: async () => {
       const { data, error } = await (simpleSupabase as any)
         .from("services")
-        .select(`id, name, slug, duration_min, price_cents, mode, active, description, benefits, image_url, created_at, professional_id`)
+        .select(
+          "id,name,slug,duration_min,price_cents,mode,active,image_url,created_at,professional_id"
+        )
         .eq("active", true)
         .order("created_at", { ascending: false })
-        .range(0, Math.max(0, limit - 1));
+        .range(from, to);
       if (error) throw error;
       return data || [];
     },
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -164,91 +221,54 @@ export function useAppointments() {
     queryFn: async () => {
       console.log('Fetching appointments...');
       
-      // First, get basic appointments data
+      // Get appointments with related data
       const { data, error } = await simpleSupabase
-=======
-export function useServices() {
-  return useQuery({
-    queryKey: ["services"],
-    queryFn: async () => {
-      console.log('Fetching services...');
-      
-      const { data, error } = await simpleSupabase
-        .from("services")
+        .from("appointments")
         .select(`
           id,
-          professional_id,
-          slug,
-          name,
-          category_id,
-          duration_min,
+          patient_profile_id,
+          service_id,
+          date,
+          start_time,
+          end_time,
+          appointment_status,
+          payment_status,
           price_cents,
           mode,
-          active,
-          description,
-          benefits,
-          image_url,
+          location_address,
+          transaction_id,
           created_at,
-          updated_at,
-          categories:category_id(
+          services(
             id,
             name,
-            slug
-          ),
-          professionals:professional_id(
-            id,
-            profile:profile_id(
+            price_cents,
+            professional_id,
+            professionals(
               id,
-              first_name,
-              last_name,
-              email,
-              avatar_url
+              profile_id,
+              profile:profiles!inner(
+                id,
+                first_name,
+                last_name,
+                email
+              )
             )
           )
         `)
-        .eq("active", true)
-        .order("created_at", { ascending: false });
-      
-      console.log('Services query result:', { data, error });
-      
-      if (error) throw error;
+        .order('date', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching appointments:', error);
+        throw error;
+      }
+
       return data || [];
     },
   });
 }
 
-export function useAppointments() {
-  return useQuery({
-    queryKey: ["appointments"],
-    queryFn: async () => {
-      console.log('Fetching appointments...');
-      
-      // First, get basic appointments data
-      const { data, error } = await simpleSupabase
->>>>>>> main
-        .from("appointments")
-        .select(`
-          *,
-          services(
-            id,
-            name
-          ),
-          profiles(
-            id,
-            first_name,
-            last_name,
-            email
-          )
-        `)
-        .order("date", { ascending: false });
-      
-      console.log('Appointments query result:', { data, error });
-      
-      if (error) throw error;
-      return data || [];
-    },
-  });
-}
+
+
 
 export function useProfessionalServices(professionalId: string) {
   return useQuery({
@@ -426,7 +446,7 @@ export function useEvents() {
   });
 }
 
-// Generic events-by-status hook for Admin views
+// Generic events-by-status hook for Admin viewsg
 export function useEventsByStatus(status: "pending" | "approved" | "rejected" | "cancelled") {
   return useQuery({
     queryKey: ["events", status],
@@ -497,39 +517,62 @@ export function useNotifications() {
   return useQuery({
     queryKey: ["notifications"],
     queryFn: async (): Promise<NotificationRow[]> => {
-<<<<<<< HEAD
       // Get current user's profile to filter notifications
       const { data: authData } = await simpleSupabase.auth.getUser();
       const currentUserId = authData?.user?.id;
-      
       if (!currentUserId) {
         return [];
       }
-
       // Get current user's profile
       const { data: profile, error: profileError } = await simpleSupabase
         .from("profiles")
         .select("id, role")
         .eq("user_id", currentUserId)
         .maybeSingle();
-      
       if (profileError || !profile) {
         return [];
       }
-
       // Filter notifications by recipient_profile_id or recipient_role
       const { data, error } = await (simpleSupabase as any)
         .from("notifications")
         .select("id, recipient_profile_id, recipient_role, title, body, link_url, data, read_at, created_at")
         .or(`recipient_profile_id.eq.${profile.id},recipient_role.eq.${profile.role}`)
         .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as NotificationRow[];
+    },
+  });
+}
+
+// Admin hook to get all notifications (for admin dashboard)
+export function useAllNotifications() {
+  return useQuery({
+    queryKey: ["admin-notifications"],
+    queryFn: async (): Promise<NotificationRow[]> => {
+      // Get current user's profile to check if they're admin
+      const { data: authData } = await simpleSupabase.auth.getUser();
+      const currentUserId = authData?.user?.id;
+      if (!currentUserId) {
+        return [];
+      }
       
-=======
+      // Get current user's profile to verify admin role
+      const { data: profile, error: profileError } = await simpleSupabase
+        .from("profiles")
+        .select("id, role")
+        .eq("user_id", currentUserId)
+        .maybeSingle();
+      
+      if (profileError || !profile || profile.role !== "admin") {
+        return [];
+      }
+      
+      // Get all notifications (admins can see all notifications in the system)
       const { data, error } = await (simpleSupabase as any)
         .from("notifications")
         .select("id, recipient_profile_id, recipient_role, title, body, link_url, data, read_at, created_at")
         .order("created_at", { ascending: false });
->>>>>>> main
+      
       if (error) throw error;
       return (data || []) as NotificationRow[];
     },
@@ -540,7 +583,6 @@ export function useMarkNotificationRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id }: { id: string }) => {
-<<<<<<< HEAD
       // Get current user's profile to ensure they can only mark their own notifications as read
       const { data: authData } = await simpleSupabase.auth.getUser();
       const currentUserId = authData?.user?.id;
@@ -566,18 +608,13 @@ export function useMarkNotificationRead() {
         .update({ read_at: new Date().toISOString() })
         .eq("id", id)
         .or(`recipient_profile_id.eq.${profile.id},recipient_role.eq.${profile.role}`);
-      
-=======
-      const { error } = await (simpleSupabase as any)
-        .from("notifications")
-        .update({ read_at: new Date().toISOString() })
-        .eq("id", id);
->>>>>>> main
+
       if (error) throw error;
       return true as const;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-notifications"] });
     },
   });
 }
@@ -588,48 +625,34 @@ export function useNotification(id?: string) {
     enabled: Boolean(id),
     queryFn: async (): Promise<NotificationRow | null> => {
       if (!id) return null;
-<<<<<<< HEAD
-      
       // Get current user's profile to filter notifications
       const { data: authData } = await simpleSupabase.auth.getUser();
       const currentUserId = authData?.user?.id;
-      
       if (!currentUserId) {
         return null;
       }
-
       // Get current user's profile
       const { data: profile, error: profileError } = await simpleSupabase
         .from("profiles")
         .select("id, role")
         .eq("user_id", currentUserId)
         .maybeSingle();
-      
       if (profileError || !profile) {
         return null;
       }
-
       // Filter notification by recipient_profile_id or recipient_role
-=======
->>>>>>> main
       const { data, error } = await (simpleSupabase as any)
         .from("notifications")
         .select("id, recipient_profile_id, recipient_role, title, body, link_url, data, read_at, created_at")
         .eq("id", id)
-<<<<<<< HEAD
         .or(`recipient_profile_id.eq.${profile.id},recipient_role.eq.${profile.role}`)
         .maybeSingle();
-      
-=======
-        .maybeSingle();
->>>>>>> main
       if (error) throw error;
       return (data || null) as NotificationRow | null;
     },
   });
 }
 
-<<<<<<< HEAD
 // Create notification for specific user (e.g., when booking appointments)
 export function useCreateUserNotification() {
   const queryClient = useQueryClient();
@@ -672,6 +695,7 @@ export function useCreateUserNotification() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-notifications"] });
     },
   });
 }
@@ -821,12 +845,13 @@ export function useCreateNotification() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-notifications"] });
     },
   });
 }
 
-=======
->>>>>>> main
+
+
 // Availability wishlist (notify when slots open for a service)
 export function useWishlistStatus(serviceId?: number) {
   return useQuery({
@@ -926,27 +951,207 @@ export function useWishlistUnsubscribe() {
   });
 }
 
-<<<<<<< HEAD
+export interface PatientListItem {
+  profile_id: string;
+  name: string;
+  email: string | null;
+  avatar_url: string | null;
+  last_appointment_at: string | null;
+}
 
+export function usePatients(professionalId: string | undefined) {
+  return useQuery<PatientListItem[]>({
+    queryKey: ["patients", professionalId],
+    enabled: Boolean(professionalId),
+    queryFn: async () => {
+      if (!professionalId) return [];
+      try {
+        const { data, error } = await (simpleSupabase as any)
+          .from("appointments")
+          .select(
+            `patient_profile_id, date, start_time, created_at,
+             patient:profiles!appointments_patient_profile_id_fkey(id, first_name, last_name, email, avatar_url),
+             service:services!appointments_service_id_fkey(professional_id)`
+          )
+          .eq("service.professional_id", professionalId)
+          .order("date", { ascending: false })
+          .order("start_time", { ascending: true });
+        if (error) return [];
+        const map = new Map<string, PatientListItem>();
+        (data || []).forEach((row: any) => {
+          const pid = row?.patient_profile_id as string;
+          if (!pid) return;
+          const fullName = `${row?.patient?.first_name ?? ""} ${row?.patient?.last_name ?? ""}`.trim();
+          const ts: string | null = row?.date
+            ? `${row.date} ${row.start_time ?? "00:00:00"}`
+            : row?.created_at ?? null;
+          const existing = map.get(pid);
+          if (!existing) {
+            map.set(pid, {
+              profile_id: pid,
+              name: fullName || "Patient",
+              email: row?.patient?.email ?? null,
+              avatar_url: row?.patient?.avatar_url ?? null,
+              last_appointment_at: ts,
+            });
+          } else if (ts && (!existing.last_appointment_at || ts > existing.last_appointment_at)) {
+            existing.last_appointment_at = ts;
+            map.set(pid, existing);
+          }
+        });
+        return Array.from(map.values());
+      } catch {
+        return [];
+      }
+    },
+  });
+}
 
+export interface FeedbackItem {
+  id: string;
+  professional_id: string;
+  patient_profile_id: string;
+  rating: number;
+  feedback_text?: string | null;
+  additional_comments?: string | null;
+  would_recommend?: boolean | null;
+  created_at: string;
+  profiles?: {
+    first_name?: string | null;
+    last_name?: string | null;
+    avatar_url?: string | null;
+  } | null;
+}
 
+export function useProfessionalFeedback(professionalId?: string) {
+  return useQuery<{ feedback: FeedbackItem[] }>({
+    queryKey: ["professional-feedback", professionalId],
+    enabled: Boolean(professionalId),
+    queryFn: async () => {
+      if (!professionalId) return { feedback: [] };
+      try {
+        const { data, error } = await (simpleSupabase as any)
+          .from("feedback")
+          .select(
+            `id, professional_id, patient_profile_id, rating, feedback_text, additional_comments, would_recommend, created_at,
+             profiles:profiles!feedback_patient_profile_id_fkey(first_name, last_name, avatar_url)`
+          )
+          .eq("professional_id", professionalId)
+          .order("created_at", { ascending: false });
+        if (error) {
+          console.error("Error fetching professional feedback:", error);
+          return { feedback: [] };
+        }
+        console.log("Professional feedback data:", data);
+        return { feedback: (data || []) as FeedbackItem[] };
+      } catch (error) {
+        console.error("Error fetching professional feedback:", error);
+        return { feedback: [] };
+      }
+    },
+    initialData: { feedback: [] },
+  });
+}
 
+// Create feedback (save to database)
+export function useCreateFeedback() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ 
+      professionalId, 
+      patientProfileId, 
+      appointmentId, 
+      rating, 
+      feedbackText, 
+      additionalComments, 
+      wouldRecommend, 
+      sessionQuality 
+    }: {
+      professionalId: string;
+      patientProfileId: string;
+      appointmentId?: number;
+      rating: number;
+      feedbackText?: string;
+      additionalComments?: string;
+      wouldRecommend?: boolean;
+      sessionQuality?: any;
+    }) => {
+      const { data, error } = await (simpleSupabase as any)
+        .from("feedback")
+        .insert({
+          professional_id: professionalId,
+          patient_profile_id: patientProfileId,
+          appointment_id: appointmentId,
+          rating,
+          feedback_text: feedbackText,
+          additional_comments: additionalComments,
+          would_recommend: wouldRecommend,
+          session_quality: sessionQuality
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data, variables) => {
+      // Invalidate feedback queries for this professional
+      queryClient.invalidateQueries({ queryKey: ["professional-feedback", variables.professionalId] });
+    },
+  });
+}
 
+export interface WithdrawalItem {
+  id: number;
+  professional_id: string;
+  amount_cents: number;
+  method: "Bank" | "PayPal" | "Stripe";
+  status: "requested" | "approved" | "transferred";
+  payout_details: any;
+  requested_at: string;
+  approved_at: string | null;
+  transferred_at: string | null;
+  professional?: {
+    id: string;
+    profession: string;
+    profile: {
+      first_name: string | null;
+      last_name: string | null;
+      email: string | null;
+    };
+  };
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-=======
->>>>>>> main
-
+export function useWithdrawals() {
+  return useQuery<WithdrawalItem[]>({
+    queryKey: ["withdrawals"],
+    queryFn: async () => {
+      const { data, error } = await (simpleSupabase as any)
+        .from("withdrawals")
+        .select(`
+          id,
+          professional_id,
+          amount_cents,
+          method,
+          status,
+          payout_details,
+          requested_at,
+          approved_at,
+          transferred_at,
+          professionals:professionals!inner(
+            id,
+            profession,
+            profile:profiles!inner(
+              first_name,
+              last_name,
+              email
+            )
+          )
+        `)
+        .order("requested_at", { ascending: false });
+      
+      if (error) throw error;
+      return (data || []) as WithdrawalItem[];
+    },
+  });
+}
