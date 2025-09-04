@@ -319,7 +319,7 @@ const BookAppointment = () => {
               (availability as any)?.customSchedules?.[ymd] ||
               (availability as any)?.customSchedules?.[weekdayName] ||
               (availability as any)?.customSchedules?.[
-              normalizeDayName(weekdayName) as any
+                normalizeDayName(weekdayName) as any
               ];
             const timeSlots = custom
               ? (custom as any)?.timeSlots || (custom as any)?.slots || []
@@ -687,7 +687,6 @@ const BookAppointment = () => {
       const { error } = await simpleSupabase.from("appointments").insert({
         service_id: selectedService.id,
         patient_profile_id: authProfile.id,
-        professional_id: prof.id,
         mode: selectedService.mode,
         date: date,
         start_time: `${slot}:00`,
@@ -831,10 +830,11 @@ const BookAppointment = () => {
                               setDate(ymd);
                               setSlot("");
                             }}
-                            className={`text-left rounded-md border px-3 py-2 ${isSelected
-                              ? "bg-violet-600 text-white border-transparent"
-                              : "bg-white text-slate-800 border-slate-200 hover:bg-slate-50"
-                              } ${!hasSlots ? "opacity-50" : ""}`}
+                            className={`text-left rounded-md border px-3 py-2 ${
+                              isSelected
+                                ? "bg-violet-600 text-white border-transparent"
+                                : "bg-white text-slate-800 border-slate-200 hover:bg-slate-50"
+                            } ${!hasSlots ? "opacity-50" : ""}`}
                             disabled={!hasSlots}
                           >
                             <div className="text-xs">
@@ -942,10 +942,11 @@ const BookAppointment = () => {
                         key={`${date || "no-date"}-${t}`}
                         type="button"
                         onClick={() => setSlot(t)}
-                        className={`rounded-md px-3 py-2 text-sm border ${slot === t
-                          ? "bg-violet-600 text-white border-transparent"
-                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                          }`}
+                        className={`rounded-md px-3 py-2 text-sm border ${
+                          slot === t
+                            ? "bg-violet-600 text-white border-transparent"
+                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                        }`}
                       >
                         {formatTime12h(t)}
                       </button>
@@ -1119,16 +1120,17 @@ const BookAppointment = () => {
                     !selectedService?.id
                   }
                   onClick={toggleAlert}
-                  className={`rounded-full px-4 py-2 ${wishlist?.active
-                    ? "bg-violet-600 text-white opacity-70 cursor-default"
-                    : "bg-violet-600 text-white hover:bg-violet-700"
-                    } `}
+                  className={`rounded-full px-4 py-2 ${
+                    wishlist?.active
+                      ? "bg-violet-600 text-white opacity-70 cursor-default"
+                      : "bg-violet-600 text-white hover:bg-violet-700"
+                  } `}
                 >
                   {subscribeMutation.isPending || unsubscribeMutation.isPending
                     ? "Saving…"
                     : wishlist?.active
-                      ? "Added"
-                      : "Add to alerts"}
+                    ? "Added"
+                    : "Add to alerts"}
                 </Button>
                 <Button
                   as="link"
@@ -1386,8 +1388,8 @@ const BookAppointment = () => {
                         (isServiceFlow
                           ? selectedService?.price_cents
                             ? `$${(selectedService.price_cents / 100).toFixed(
-                              2
-                            )}`
+                                2
+                              )}`
                             : "—"
                           : "—")}
                     </span>
