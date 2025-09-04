@@ -107,7 +107,7 @@ const BookAppointment = () => {
   const providerSlug = (params as any).providerSlug as string | undefined; // new route: /book/:providerSlug/:serviceSlug
   const serviceSlug = (params as any).serviceSlug as string | undefined;
   const isServiceFlow = Boolean(providerSlug && serviceSlug);
-  const { professionals, loading, error } = useProfessionals();
+  const { data: professionals, isLoading: loading, error } = useProfessionals();
 
   // Debug logging
   console.log("BookAppointment - route params:", params);
@@ -129,7 +129,7 @@ const BookAppointment = () => {
   console.log("BookAppointment - isServiceFlow:", isServiceFlow);
 
   // Load services for the professional when in service flow
-  const { services: profServices, loading: servicesLoading } =
+  const { data: profServices, isLoading: servicesLoading } =
     useProfessionalServices(prof?.id);
   const selectedService = isServiceFlow
     ? (profServices || []).find((s: any) => s.slug === serviceSlug)

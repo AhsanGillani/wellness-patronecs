@@ -86,7 +86,7 @@ const Community = () => {
       }
 
       await createQuestion.mutateAsync({
-        topicIds,
+        topicId: topicIds[0], // Use first topic ID as primary topic
         title: title.trim(),
         body: body.trim(),
         isAnonymous,
@@ -279,7 +279,7 @@ const Community = () => {
                       <span className="text-slate-600">Asked {new Date(q.created_at).toLocaleString()}</span>
                       <span className="ml-auto text-slate-500 group-hover:text-slate-600 transition-colors duration-300">{(q.answer_count ?? 0)} answers</span>
 <span className="text-slate-500">•</span>
-                      <span className="text-slate-500">👁️ {(q.views ?? 0)}</span>
+                      <span className="text-slate-500">👁️ {0}</span>
 
 
                     </div>
