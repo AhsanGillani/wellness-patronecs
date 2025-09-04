@@ -30,7 +30,6 @@ const CommunityQuestion = () => {
   const { data: relatedList = [] } = useQuestions(q?.topic?.id);
   const { data: answers = [], isLoading: answersLoading, error: answersError, refetch } = useAnswers(id);
 
-<<<<<<< HEAD
   // Increment views on open
   useEffect(() => {
     if (!id) return;
@@ -41,8 +40,8 @@ const CommunityQuestion = () => {
     })();
   }, [id]);
 
-=======
->>>>>>> main
+
+
   // Fetch current user profile
   useEffect(() => {
     const fetchCurrentUser = async () => {

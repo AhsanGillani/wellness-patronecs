@@ -54,7 +54,7 @@ const ResetPassword = () => {
         setSuccess('Password updated successfully. Redirecting to sign in...');
         setTimeout(() => navigate('/login'), 1500);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setError('An unexpected error occurred. Please try again.');
     }
 

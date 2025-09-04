@@ -30,10 +30,9 @@ const PatientSignup = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
-<<<<<<< HEAD
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-=======
->>>>>>> main
+
+
 
   const { signUp, user } = useAuth();
   const navigate = useNavigate();
@@ -115,13 +114,12 @@ const PatientSignup = () => {
       }
 
       // Account created successfully - the database trigger will create the profile
-<<<<<<< HEAD
       // Show success modal and redirect after 3 seconds
       setShowSuccessModal(true);
       setTimeout(() => {
         navigate('/login');
       }, 3000);
-=======
+
       toast({
         title: "Account Created Successfully!",
         description: "Please check your email and verify your account to continue.",
@@ -131,7 +129,7 @@ const PatientSignup = () => {
       setTimeout(() => {
         navigate('/login');
       }, 2000);
->>>>>>> main
+
 
     } catch (error: unknown) {
       console.error('Signup error:', error);
