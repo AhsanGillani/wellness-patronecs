@@ -248,8 +248,8 @@ const LiveSession = () => {
             }
 
             // Update local data for display
-            data.date = rescheduleData.new_date;
-            data.start_time = rescheduleData.new_start_time;
+            data.date = rescheduleData.requested_appointment_date;
+            data.start_time = rescheduleData.requested_appointment_start_time;
             data.appointment_status = "scheduled";
           }
         }
@@ -337,8 +337,8 @@ const LiveSession = () => {
                 await (simpleSupabase as any)
                   .from("appointments")
                   .update({
-                    date: rescheduleData.new_date,
-                    start_time: rescheduleData.new_start_time,
+                    date: rescheduleData.requested_appointment_date,
+                    start_time: rescheduleData.requested_appointment_start_time,
                     appointment_status: "scheduled",
                   })
                   .eq("id", Number(id));

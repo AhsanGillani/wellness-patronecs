@@ -64,7 +64,7 @@ const Events = () => {
           registration_url: "https://example.com/register",
           image_url: null,
           ticket_price_cents: 0,
-          status: "approved",
+          status: "approved" as "approved",
         },
         {
           slug: "cardiology-seminar",
@@ -81,7 +81,7 @@ const Events = () => {
           registration_url: "https://example.com/register",
           image_url: null,
           ticket_price_cents: 2500,
-          status: "approved",
+          status: "approved" as "approved",
         },
         {
           slug: "nutrition-bootcamp",
@@ -98,7 +98,7 @@ const Events = () => {
           registration_url: "https://example.com/register",
           image_url: null,
           ticket_price_cents: 5000,
-          status: "approved",
+          status: "approved" as "approved",
         },
         {
           slug: "fitness-challenge",
@@ -115,7 +115,7 @@ const Events = () => {
           registration_url: "https://example.com/register",
           image_url: null,
           ticket_price_cents: 0,
-          status: "approved",
+          status: "approved" as "approved",
         },
       ];
 
@@ -189,7 +189,7 @@ const Events = () => {
               return (
                 <Button
                   key={category}
-                  variant={isActive ? "default" : "outline"}
+                  variant={isActive ? "secondary" : "outline"}
                   size="sm"
                   onClick={() => {
                     setPage(1);
