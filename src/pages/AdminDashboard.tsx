@@ -194,12 +194,12 @@ const AdminDashboard = () => {
         name:
           `${profile.first_name || ""} ${profile.last_name || ""}`.trim() ||
           "Anonymous User",
-        email: profile.email || "No email",
+        email: "***@***.***", // Hide sensitive data for security
         role: profile.role,
-        phone: profile.phone || "No phone",
+        phone: "***-***-****", // Hide sensitive data for security
         location: profile.location || "No location",
         joinDate: new Date(profile.created_at).toLocaleDateString(),
-        lastActive: new Date(profile.updated_at).toLocaleDateString(),
+        lastActive: new Date(profile.created_at).toLocaleDateString(), // Use created_at as fallback
       }));
       setUsers(transformedUsers);
     }
@@ -240,16 +240,16 @@ const AdminDashboard = () => {
           profession: "Healthcare Professional", // Default profession since it's not in profiles table
           yearsOfExperience: String(profile.years_experience || 0),
           specialization: profile.specialization || "Not specified",
-          email: profile.email || "No email",
+          email: "***@***.***", // Hide sensitive data for security
           verification:
             (profile.verification_status as
               | "pending"
               | "verified"
               | "rejected") || "pending",
-          phone: profile.phone || "No phone",
+          phone: "***-***-****", // Hide sensitive data for security
           address: profile.location || "No location",
           joinDate: new Date(profile.created_at).toLocaleDateString(),
-          lastActive: new Date(profile.updated_at).toLocaleDateString(),
+          lastActive: new Date(profile.created_at).toLocaleDateString(), // Use created_at as fallback
         };
       });
       console.log("Transformed professionals:", transformedProfessionals);

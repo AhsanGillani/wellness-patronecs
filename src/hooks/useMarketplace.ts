@@ -83,7 +83,7 @@ export interface BlogPost {
   created_at: string;
 }
 
-// Profiles
+// Profiles - Only select safe fields for public display
 export function useProfiles(page = 1, pageSize = 20) {
   const from = Math.max(0, (page - 1) * pageSize);
   const to = from + pageSize - 1;
@@ -92,7 +92,7 @@ export function useProfiles(page = 1, pageSize = 20) {
     queryFn: async () => {
       const { data, error } = await simpleSupabase
         .from("profiles")
-        .select("id,user_id,role,slug,first_name,last_name,email,avatar_url,created_at")
+        .select("id,user_id,role,slug,first_name,last_name,avatar_url,bio,specialization,years_experience,location,verification_status,created_at")
         .order("created_at", { ascending: false })
         .range(from, to);
       if (error) throw error;
@@ -109,7 +109,12 @@ export function useProfessional(userId: string) {
   return useQuery({
     queryKey: ["profile", userId],
     queryFn: async () => {
-      const { data, error } = await simpleSupabase.from("profiles").select("*").eq("user_id", userId).maybeSingle();
+      // Only select safe fields for public professional profiles
+      const { data, error } = await simpleSupabase
+        .from("profiles")
+        .select("id,user_id,role,slug,first_name,last_name,avatar_url,bio,specialization,years_experience,location,verification_status,created_at")
+        .eq("user_id", userId)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -954,9 +959,9 @@ export function useWishlistUnsubscribe() {
 export interface PatientListItem {
   profile_id: string;
   name: string;
-  email: string | null;
   avatar_url: string | null;
   last_appointment_at: string | null;
+  // Note: email removed for privacy - professionals should not see patient emails
 }
 
 export function usePatients(professionalId: string | undefined) {
@@ -990,7 +995,6 @@ export function usePatients(professionalId: string | undefined) {
             map.set(pid, {
               profile_id: pid,
               name: fullName || "Patient",
-              email: row?.patient?.email ?? null,
               avatar_url: row?.patient?.avatar_url ?? null,
               last_appointment_at: ts,
             });
