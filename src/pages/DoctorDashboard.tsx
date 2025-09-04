@@ -3327,10 +3327,10 @@ const DoctorDashboard = () => {
                   <div className="text-sm text-gray-700 whitespace-pre-line">
                     {ev.details}
                   </div>
-                  {ev.registrationUrl && (
+                  {(ev as any).registrationUrl && (
                     <div className="mt-3">
                       <a
-                        href={ev.registrationUrl}
+                        href={(ev as any).registrationUrl}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex items-center text-sm text-violet-600 hover:text-violet-700"
@@ -3577,8 +3577,8 @@ const DoctorDashboard = () => {
         from:
           patients?.find(
             (p) =>
-              p.email ===
-              paidAppointments.find((apt) => apt.id === r.appointment_id)
+              (p as any).email ===
+              paidAppointments.find((apt) => apt.id === (r as any).appointment_id)
                 ?.patientEmail
           )?.name || "Unknown Patient",
         subject: "Appointment reschedule request",
@@ -3590,10 +3590,10 @@ const DoctorDashboard = () => {
         avatar:
           patients?.find(
             (p) =>
-              p.email ===
-              paidAppointments.find((apt) => apt.id === r.appointment_id)
+              (p as any).email ===
+              paidAppointments.find((apt) => apt.id === (r as any).appointment_id)
                 ?.patientEmail
-          )?.avatar ||
+          )?.avatar as any ||
           "https://images.unsplash.com/photo-1494790108755-2616b612b786?q=80&w=256&auto=format&fit=crop",
       }));
   }, [rescheduleRequests, patients, paidAppointments]);
@@ -4910,7 +4910,7 @@ const DoctorDashboard = () => {
         // Create service in database
         const { data: serviceData, error: serviceError } = await supabase
           .from("services")
-          .insert({
+          .insert([{
           professional_id: professionalId,
             slug:
               newService.name.toLowerCase().replace(/\s+/g, "-") +
@@ -4935,7 +4935,7 @@ const DoctorDashboard = () => {
                   ? newService.customSchedules
                   : undefined,
             },
-          })
+          }])
           .select()
           .single();
 
@@ -5008,11 +5008,11 @@ const DoctorDashboard = () => {
 
       // Ensure availability data is properly structured
       const availability = svc.availability || {};
-      const availableDays = availability.days || [];
-      const scheduleType = availability.customSchedules ? "custom" : "same";
-      const numberOfSlots = availability.numberOfSlots || 1;
-      const timeSlots = availability.timeSlots || [{ start: "", end: "" }];
-      const customSchedules = availability.customSchedules || {};
+      const availableDays = (availability as any).days || [];
+      const scheduleType = (availability as any).customSchedules ? "custom" : "same";
+      const numberOfSlots = (availability as any).numberOfSlots || 1;
+      const timeSlots = (availability as any).timeSlots || [{ start: "", end: "" }];
+      const customSchedules = (availability as any).customSchedules || {};
 
       setNewService({
         name: svc.name,
@@ -5107,7 +5107,7 @@ const DoctorDashboard = () => {
             category_id: categoryId,
             duration_min: Number(newService.durationMin),
             price_cents: Math.round(Number(newService.price) * 100),
-            mode: newService.mode,
+            mode: newService.mode as "In-person" | "Virtual",
             description: newService.description,
             benefits: benefits,
             image_url: newService.imageUrl || null,
