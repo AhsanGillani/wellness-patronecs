@@ -227,8 +227,8 @@ const LiveSession = () => {
             const { error: updateError } = await supabase
               .from("appointments")
               .update({
-                date: rescheduleData.new_date,
-                start_time: rescheduleData.new_start_time,
+                date: rescheduleData.requested_appointment_date,
+                start_time: rescheduleData.requested_appointment_start_time,
                 appointment_status: "scheduled",
               })
               .eq("id", Number(id));

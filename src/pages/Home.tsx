@@ -500,8 +500,8 @@ const Home = () => {
               {!prosLoading &&
                 topPros.map((p, idx) => {
                   const imgSrc =
-                    p.image && !String(p.image).includes("placeholder")
-                      ? p.image
+                    p.avatar_url && !String(p.avatar_url).includes("placeholder")
+                      ? p.avatar_url
                       : avatars[idx % avatars.length];
                   return (
                     <div

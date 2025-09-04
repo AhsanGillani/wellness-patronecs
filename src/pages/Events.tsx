@@ -121,7 +121,10 @@ const Events = () => {
 
       const { data, error } = await supabase
         .from("events")
-        .insert(sampleEvents);
+        .insert(sampleEvents.map(event => ({
+          ...event,
+          host_professional_id: "00000000-0000-0000-0000-000000000000" // Placeholder
+        })));
 
       if (error) {
         console.error("Error adding sample events:", error);
@@ -186,7 +189,7 @@ const Events = () => {
               return (
                 <Button
                   key={category}
-                  variant={isActive ? "default" : "secondary"}
+                  variant={isActive ? "default" : "outline"}
                   size="sm"
                   onClick={() => {
                     setPage(1);
@@ -220,7 +223,7 @@ const Events = () => {
               </div>
             ) : error ? (
               <div className="col-span-full text-center py-12">
-                <p className="text-red-600">Error loading events: {error}</p>
+                <p className="text-red-600">Error loading events: {error?.message || 'Unknown error'}</p>
               </div>
             ) : filteredEvents.length === 0 ? (
               <div className="col-span-full text-center py-12">

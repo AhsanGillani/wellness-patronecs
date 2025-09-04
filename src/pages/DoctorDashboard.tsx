@@ -3593,7 +3593,7 @@ const DoctorDashboard = () => {
               (p as any).email ===
               paidAppointments.find((apt) => apt.id === (r as any).appointment_id)
                 ?.patientEmail
-          )?.avatar as any ||
+          )?.avatar_url ||
           "https://images.unsplash.com/photo-1494790108755-2616b612b786?q=80&w=256&auto=format&fit=crop",
       }));
   }, [rescheduleRequests, patients, paidAppointments]);
