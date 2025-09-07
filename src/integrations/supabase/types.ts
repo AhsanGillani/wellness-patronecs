@@ -26,6 +26,7 @@ export type Database = {
           patient_profile_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price_cents: number
+          professional_id: string | null
           service_id: number
           start_time: string
           transaction_id: string | null
@@ -41,6 +42,7 @@ export type Database = {
           patient_profile_id: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           price_cents: number
+          professional_id?: string | null
           service_id: number
           start_time: string
           transaction_id?: string | null
@@ -56,6 +58,7 @@ export type Database = {
           patient_profile_id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           price_cents?: number
+          professional_id?: string | null
           service_id?: number
           start_time?: string
           transaction_id?: string | null
@@ -185,6 +188,7 @@ export type Database = {
           guest_name: string | null
           id: string
           is_professional: boolean
+          parent_id: string | null
           question_id: string
           status: Database["public"]["Enums"]["community_status"]
           updated_at: string
@@ -197,6 +201,7 @@ export type Database = {
           guest_name?: string | null
           id?: string
           is_professional?: boolean
+          parent_id?: string | null
           question_id: string
           status?: Database["public"]["Enums"]["community_status"]
           updated_at?: string
@@ -209,11 +214,19 @@ export type Database = {
           guest_name?: string | null
           id?: string
           is_professional?: boolean
+          parent_id?: string | null
           question_id?: string
           status?: Database["public"]["Enums"]["community_status"]
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "community_answers_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "community_answers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "community_answers_question_id_fkey"
             columns: ["question_id"]
@@ -236,6 +249,7 @@ export type Database = {
           title: string
           topic_id: string
           updated_at: string
+          views: number
         }
         Insert: {
           author_user_id?: string | null
@@ -249,6 +263,7 @@ export type Database = {
           title: string
           topic_id: string
           updated_at?: string
+          views?: number
         }
         Update: {
           author_user_id?: string | null
@@ -262,6 +277,7 @@ export type Database = {
           title?: string
           topic_id?: string
           updated_at?: string
+          views?: number
         }
         Relationships: [
           {
@@ -281,6 +297,7 @@ export type Database = {
           guest_fingerprint: string | null
           guest_name: string | null
           id: string
+          image_base64: string | null
           slug: string
           status: Database["public"]["Enums"]["community_status"]
           title: string
@@ -293,6 +310,7 @@ export type Database = {
           guest_fingerprint?: string | null
           guest_name?: string | null
           id?: string
+          image_base64?: string | null
           slug: string
           status?: Database["public"]["Enums"]["community_status"]
           title: string
@@ -305,6 +323,7 @@ export type Database = {
           guest_fingerprint?: string | null
           guest_name?: string | null
           id?: string
+          image_base64?: string | null
           slug?: string
           status?: Database["public"]["Enums"]["community_status"]
           title?: string
@@ -502,39 +521,57 @@ export type Database = {
         Row: {
           bio: string | null
           created_at: string
+          education_certifications: string | null
           id: string
+          license_number: string | null
           location: string | null
+          phone: string | null
+          practice_address: string | null
+          practice_name: string | null
           price_per_session: number | null
           profession: string | null
           profile_id: string
           slug: string
           specialization: string | null
+          user_id: string | null
           verification: string | null
           years_experience: number | null
         }
         Insert: {
           bio?: string | null
           created_at?: string
+          education_certifications?: string | null
           id?: string
+          license_number?: string | null
           location?: string | null
+          phone?: string | null
+          practice_address?: string | null
+          practice_name?: string | null
           price_per_session?: number | null
           profession?: string | null
           profile_id: string
           slug: string
           specialization?: string | null
+          user_id?: string | null
           verification?: string | null
           years_experience?: number | null
         }
         Update: {
           bio?: string | null
           created_at?: string
+          education_certifications?: string | null
           id?: string
+          license_number?: string | null
           location?: string | null
+          phone?: string | null
+          practice_address?: string | null
+          practice_name?: string | null
           price_per_session?: number | null
           profession?: string | null
           profile_id?: string
           slug?: string
           specialization?: string | null
+          user_id?: string | null
           verification?: string | null
           years_experience?: number | null
         }
@@ -552,91 +589,213 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          city: string | null
           created_at: string
+          date_of_birth: string | null
+          education_certifications: string | null
           email: string | null
           first_name: string | null
+          health_goals: string | null
           id: string
           last_name: string | null
+          license_number: string | null
           location: string | null
           phone: string | null
+          practice_address: string | null
+          practice_name: string | null
           role: Database["public"]["Enums"]["user_role"]
           slug: string
           specialization: string | null
+          state: string | null
           updated_at: string
           user_id: string | null
           verification_status: string | null
-          years_experience: number | null
+          years_experience: string | null
+          zip: string | null
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          city?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          education_certifications?: string | null
           email?: string | null
           first_name?: string | null
+          health_goals?: string | null
           id?: string
           last_name?: string | null
+          license_number?: string | null
           location?: string | null
           phone?: string | null
+          practice_address?: string | null
+          practice_name?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           slug: string
           specialization?: string | null
+          state?: string | null
           updated_at?: string
           user_id?: string | null
           verification_status?: string | null
-          years_experience?: number | null
+          years_experience?: string | null
+          zip?: string | null
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          city?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          education_certifications?: string | null
           email?: string | null
           first_name?: string | null
+          health_goals?: string | null
           id?: string
           last_name?: string | null
+          license_number?: string | null
           location?: string | null
           phone?: string | null
+          practice_address?: string | null
+          practice_name?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           slug?: string
           specialization?: string | null
+          state?: string | null
           updated_at?: string
           user_id?: string | null
           verification_status?: string | null
-          years_experience?: number | null
+          years_experience?: string | null
+          zip?: string | null
         }
         Relationships: []
       }
-      security_audit_log: {
+      refund_requests: {
         Row: {
-          action: string
+          appointment_id: number
           created_at: string
-          id: string
-          ip_address: unknown | null
-          record_id: string | null
-          table_name: string
-          user_agent: string | null
-          user_id: string | null
+          id: number
+          patient_profile_id: string
+          professional_profile_id: string
+          reason: string | null
+          status: Database["public"]["Enums"]["refund_status"]
+          updated_at: string
         }
         Insert: {
-          action: string
+          appointment_id: number
           created_at?: string
-          id?: string
-          ip_address?: unknown | null
-          record_id?: string | null
-          table_name: string
-          user_agent?: string | null
-          user_id?: string | null
+          id?: number
+          patient_profile_id: string
+          professional_profile_id: string
+          reason?: string | null
+          status?: Database["public"]["Enums"]["refund_status"]
+          updated_at?: string
         }
         Update: {
-          action?: string
+          appointment_id?: number
           created_at?: string
-          id?: string
-          ip_address?: unknown | null
-          record_id?: string | null
-          table_name?: string
-          user_agent?: string | null
-          user_id?: string | null
+          id?: number
+          patient_profile_id?: string
+          professional_profile_id?: string
+          reason?: string | null
+          status?: Database["public"]["Enums"]["refund_status"]
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "refund_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_professional_profile_id_fkey"
+            columns: ["professional_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reschedule_requests: {
+        Row: {
+          appointment_id: number
+          created_at: string
+          current_appointment_date: string
+          current_appointment_end_time: string
+          current_appointment_start_time: string
+          id: number
+          patient_profile_id: string
+          professional_profile_id: string
+          reason: string
+          requested_appointment_date: string
+          requested_appointment_end_time: string
+          requested_appointment_start_time: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          appointment_id: number
+          created_at?: string
+          current_appointment_date: string
+          current_appointment_end_time: string
+          current_appointment_start_time: string
+          id?: number
+          patient_profile_id: string
+          professional_profile_id: string
+          reason: string
+          requested_appointment_date: string
+          requested_appointment_end_time: string
+          requested_appointment_start_time: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          appointment_id?: number
+          created_at?: string
+          current_appointment_date?: string
+          current_appointment_end_time?: string
+          current_appointment_start_time?: string
+          id?: number
+          patient_profile_id?: string
+          professional_profile_id?: string
+          reason?: string
+          requested_appointment_date?: string
+          requested_appointment_end_time?: string
+          requested_appointment_start_time?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reschedule_requests_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reschedule_requests_patient_profile_id_fkey"
+            columns: ["patient_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reschedule_requests_professional_profile_id_fkey"
+            columns: ["professional_profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       services: {
         Row: {
@@ -649,7 +808,6 @@ export type Database = {
           duration_min: number
           id: number
           image_url: string | null
-          location_address: string | null
           mode: Database["public"]["Enums"]["service_mode"]
           name: string
           price_cents: number
@@ -667,7 +825,6 @@ export type Database = {
           duration_min: number
           id?: number
           image_url?: string | null
-          location_address?: string | null
           mode?: Database["public"]["Enums"]["service_mode"]
           name: string
           price_cents?: number
@@ -685,7 +842,6 @@ export type Database = {
           duration_min?: number
           id?: number
           image_url?: string | null
-          location_address?: string | null
           mode?: Database["public"]["Enums"]["service_mode"]
           name?: string
           price_cents?: number
@@ -714,26 +870,53 @@ export type Database = {
         Row: {
           created_at: string
           email: string
-          id: string
+          id: number
           message: string
           name: string
-          subject: string
+          subject: string | null
         }
         Insert: {
           created_at?: string
           email: string
-          id?: string
+          id?: number
           message: string
           name: string
-          subject: string
+          subject?: string | null
         }
         Update: {
           created_at?: string
           email?: string
-          id?: string
+          id?: number
           message?: string
           name?: string
-          subject?: string
+          subject?: string | null
+        }
+        Relationships: []
+      }
+      tickets: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          quantity: number
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          quantity?: number
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          quantity?: number
+          status?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -872,23 +1055,47 @@ export type Database = {
       }
     }
     Functions: {
+      get_current_user_role: {
+        Args: Record<PropertyKey, never>
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["user_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       increment_question_views: {
-        Args: { question_id: string }
+        Args: { qid: string }
         Returns: undefined
       }
       is_admin: {
         Args: Record<PropertyKey, never>
         Returns: boolean
       }
+      is_patient: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_professional: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
     }
     Enums: {
       appointment_status: "scheduled" | "completed" | "cancelled" | "no_show"
+      booking_status: "pending" | "confirmed" | "cancelled"
       community_status: "draft" | "published" | "archived"
       event_status: "pending" | "approved" | "rejected" | "cancelled"
       payment_status: "pending" | "paid" | "refunded" | "failed"
+      post_status: "published" | "hidden" | "deleted"
       post_visibility: "draft" | "published"
+      refund_status: "pending" | "approved" | "rejected"
+      reschedule_status: "pending" | "approved" | "declined"
       service_mode: "In-person" | "Virtual"
-      user_role: "admin" | "professional" | "patient"
+      user_role: "patient" | "professional" | "admin" | "doctor"
+      vote_target: "question" | "answer"
       withdraw_method: "Bank" | "PayPal" | "Stripe"
       withdraw_status: "requested" | "approved" | "transferred"
     }
@@ -1019,12 +1226,17 @@ export const Constants = {
   public: {
     Enums: {
       appointment_status: ["scheduled", "completed", "cancelled", "no_show"],
+      booking_status: ["pending", "confirmed", "cancelled"],
       community_status: ["draft", "published", "archived"],
       event_status: ["pending", "approved", "rejected", "cancelled"],
       payment_status: ["pending", "paid", "refunded", "failed"],
+      post_status: ["published", "hidden", "deleted"],
       post_visibility: ["draft", "published"],
+      refund_status: ["pending", "approved", "rejected"],
+      reschedule_status: ["pending", "approved", "declined"],
       service_mode: ["In-person", "Virtual"],
-      user_role: ["admin", "professional", "patient"],
+      user_role: ["patient", "professional", "admin", "doctor"],
+      vote_target: ["question", "answer"],
       withdraw_method: ["Bank", "PayPal", "Stripe"],
       withdraw_status: ["requested", "approved", "transferred"],
     },
