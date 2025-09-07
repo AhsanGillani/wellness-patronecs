@@ -196,16 +196,11 @@ const LiveSession = () => {
           appointmentStatus === "completed" ||
           appointmentStatus === "cancelled"
         ) {
-          // Check if there's an approved reschedule request
-          const { data: rescheduleData, error: rescheduleError } =
-            await supabase
-              .from("reschedule_requests")
-              .select("id, status, new_date, new_start_time")
-              .eq("appointment_id", Number(id))
-              .eq("status", "approved")
-              .maybeSingle();
+          // Check if there's an approved reschedule request (disabled - table doesn't exist)
+          console.log("Reschedule check disabled - table doesn't exist");
+          // Default to standard flow
 
-          if (rescheduleError || !rescheduleData) {
+          if (true) { // reschedule check disabled
             navigate(
               `/404?message=${encodeURIComponent(
                 `This appointment has been ${
@@ -222,13 +217,13 @@ const LiveSession = () => {
           }
 
           // If there's an approved reschedule, update the appointment data
-          if (rescheduleData) {
+          if (false) { // Reschedule disabled
             // Update the appointment with new rescheduled time
             const { error: updateError } = await supabase
               .from("appointments")
               .update({
-                date: rescheduleData.requested_appointment_date,
-                start_time: rescheduleData.requested_appointment_start_time,
+                date: "2024-12-25", // Dummy date
+                start_time: "15:00", // Dummy time
                 appointment_status: "scheduled",
               })
               .eq("id", Number(id));
@@ -248,8 +243,8 @@ const LiveSession = () => {
             }
 
             // Update local data for display
-            data.date = rescheduleData.requested_appointment_date;
-            data.start_time = rescheduleData.requested_appointment_start_time;
+            data.date = "2024-12-25";
+            data.start_time = "15:00";
             data.appointment_status = "scheduled";
           }
         }
@@ -284,12 +279,7 @@ const LiveSession = () => {
 
           // If appointment time has passed, check for reschedule
           if (Date.now() > end.getTime()) {
-            const { data: rescheduleData } = await supabase
-              .from("reschedule_requests")
-              .select("id, status")
-              .eq("appointment_id", Number(id))
-              .eq("status", "approved")
-              .maybeSingle();
+            const rescheduleData = null; // Disabled - table doesn't exist
 
             if (!rescheduleData) {
               navigate(
@@ -324,15 +314,10 @@ const LiveSession = () => {
 
             // Check if appointment time has passed
             if (Date.now() > end.getTime()) {
-              // Check if there's an approved reschedule request before marking as no_show
-              const { data: rescheduleData } = await supabase
-                .from("reschedule_requests")
-                .select("id, status, new_date, new_start_time")
-                .eq("appointment_id", Number(id))
-                .eq("status", "approved")
-                .maybeSingle();
+              // Check if there's an approved reschedule request (disabled)
+              const rescheduleData = null;
 
-              if (rescheduleData) {
+              if (false) { // Reschedule disabled
                 // Update appointment with rescheduled time instead of marking as no_show
                 await (simpleSupabase as any)
                   .from("appointments")

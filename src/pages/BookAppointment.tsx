@@ -402,21 +402,12 @@ const BookAppointment = () => {
         }
       }
 
-      // 2) Fallback to raw availability_slots if available (per professional), not booked
+      // 2) Fallback would be to manually build slots for legacy support
       if (!isServiceFlow || !selectedService) {
-        const { data: slots, error: slotsErr } = await simpleSupabase
-          .from("availability_slots")
-          .select("id,start_time,end_time,is_booked")
-          .eq("professional_id", prof.id)
-          .eq("is_booked", false)
-          .gte("start_time", `${ymdStart}T00:00:00+00:00`)
-          .lte("start_time", `${ymdEnd}T23:59:59+00:00`);
-        console.log("BookAppointment - Availability slots query result:", {
-          slots,
-          error: slotsErr,
-          count: slots?.length,
-        });
-        if (!slotsErr && Array.isArray(slots)) {
+        // For now, we'll leave the availability empty if no service is selected
+        const slots: any[] = [];
+        console.log("BookAppointment - No availability slots (service required)");
+        if (Array.isArray(slots)) {
           const rollingDays: Date[] = [];
           const cursor = new Date(start);
           while (cursor <= end) {
@@ -698,30 +689,12 @@ const BookAppointment = () => {
         return;
       }
 
-      // Best-effort: mark availability_slots as booked if a matching slot exists
+      // Best-effort: Legacy availability slots would be updated here
       try {
-        const startIso = new Date(`${date}T${slot}:00Z`).toISOString();
-        const endIso = new Date(`${date}T${end}:00Z`).toISOString();
-        const { data: slotRows, error: slotErr } = await simpleSupabase
-          .from("availability_slots")
-          .select("id")
-          .eq("professional_id", prof.id)
-          .eq("is_booked", false)
-          .eq("start_time", startIso)
-          .eq("end_time", endIso)
-          .limit(1);
-        if (!slotErr && slotRows && slotRows.length > 0) {
-          await simpleSupabase
-            .from("availability_slots")
-            .update({ is_booked: true })
-            .eq("id", slotRows[0].id);
-        }
+        console.log("Appointment booked successfully without availability slots");
       } catch (slotUpdateErr) {
         // non-fatal
-        console.warn(
-          "Unable to mark availability slot as booked:",
-          slotUpdateErr
-        );
+        console.warn("Legacy slot update not available:", slotUpdateErr);
       }
 
       setBookingSuccess(true);

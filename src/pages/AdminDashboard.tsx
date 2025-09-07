@@ -207,7 +207,7 @@ const AdminDashboard = () => {
           "Anonymous User",
         email: profile.email || "",
         role: profile.role,
-        phone: (profile.phone || profile.phone_number || "").toString(),
+        phone: (profile.phone || "").toString(),
         location: profile.location || "No location",
         joinDate: new Date(profile.created_at).toLocaleDateString(),
         lastActive: new Date(profile.created_at).toLocaleDateString(), // Use created_at as fallback
@@ -238,8 +238,7 @@ const AdminDashboard = () => {
       console.log("Profiles data:", profiles);
       // Filter profiles to get only professionals
       const professionalProfiles = profiles.filter(
-        (profile) =>
-          profile.role === "professional" || profile.role === "doctor"
+        (profile) => profile.role === "professional"
       );
 
       const transformedProfessionals = professionalProfiles.map((profile) => {
@@ -248,10 +247,7 @@ const AdminDashboard = () => {
           name:
             `${profile.first_name || ""} ${profile.last_name || ""}`.trim() ||
             "Professional",
-          profession:
-            profile.profession ||
-            profile.specialization ||
-            "Healthcare Professional",
+          profession: profile.specialization || "Healthcare Professional",
           yearsOfExperience: String(profile.years_experience || 0),
           specialization: profile.specialization || "Not specified",
           email: profile.email || "",
@@ -260,7 +256,7 @@ const AdminDashboard = () => {
               | "pending"
               | "verified"
               | "rejected") || "pending",
-          phone: (profile.phone || profile.phone_number || "").toString(),
+          phone: (profile.phone || "").toString(),
           address: profile.location || "No location",
           joinDate: new Date(profile.created_at).toLocaleDateString(),
           lastActive: new Date(profile.created_at).toLocaleDateString(), // Use created_at as fallback

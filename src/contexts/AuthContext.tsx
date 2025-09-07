@@ -72,7 +72,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (cached) {
         setProfile(cached);
         const role = cached?.role;
-        if (role === 'doctor' || role === 'professional') {
+        if (role === 'professional') {
           setEffectiveRole('professional');
         } else {
           setEffectiveRole(role || 'patient');
@@ -102,7 +102,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       // Set effective role directly from profile data (much faster than RPC call)
       const role = data?.role;
-      if (role === 'doctor' || role === 'professional') {
+      if (role === 'professional') {
         setEffectiveRole('professional');
       } else {
         setEffectiveRole(role || 'patient');
