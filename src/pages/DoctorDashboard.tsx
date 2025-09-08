@@ -500,6 +500,15 @@ const DoctorDashboard = () => {
 
   // Transform appointments data using optimized hooks
   const transformedAppointments = useMemo(() => {
+    console.log("transformedAppointments dependencies:", {
+      appointments: appointments?.length,
+      profiles: profiles?.length,
+      services: services?.length,
+      allProfessionals: allProfessionals?.length,
+      profileId: profile?.id,
+      patientDataKeys: Object.keys(patientData).length
+    });
+
     if (
       !appointments ||
       !profiles ||
@@ -507,6 +516,7 @@ const DoctorDashboard = () => {
       !allProfessionals ||
       !profile?.id
     ) {
+      console.log("Missing dependencies for transformedAppointments");
       return [];
     }
 
@@ -514,16 +524,21 @@ const DoctorDashboard = () => {
     const professionalRecord = allProfessionals.find(
       (p) => p.profile_id === profile.id
     );
+    console.log("Professional record found:", professionalRecord);
     if (!professionalRecord) return [];
 
     // Filter appointments for this professional's services
     const professionalServiceIds = services
       .filter((s) => s.professional_id === professionalRecord.id)
       .map((s) => s.id);
+    
+    console.log("Professional service IDs:", professionalServiceIds);
 
     const professionalAppointments = appointments.filter((apt) =>
       professionalServiceIds.includes(apt.service_id)
     );
+    
+    console.log("Professional appointments found:", professionalAppointments.length);
 
     // Transform to PaidAppointment format
     const nowTs = Date.now();

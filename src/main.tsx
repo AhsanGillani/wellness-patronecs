@@ -7,7 +7,6 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 300_000, // 5 minutes
-      cacheTime: 600_000, // 10 minutes
       refetchOnWindowFocus: false,
       refetchOnMount: false,
       refetchOnReconnect: false,

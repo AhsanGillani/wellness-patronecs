@@ -8,9 +8,7 @@ import CommunityQuestion from "./pages/CommunityQuestion";
 import Blogs from "./pages/Blogs";
 import BlogDetail from "./pages/BlogDetail";
 import Professionals from "./pages/Professionals";
-import Professional from "./pages/Professional";
 import Services from "./pages/Services";
-import ServiceDetail from "./pages/ServiceDetail";
 import Contact from "./pages/Contact";
 import SignupSelection from "./pages/SignupSelection";
 import PatientSignup from "./pages/PatientSignup";
@@ -99,12 +97,7 @@ const AppContent = () => {
             <Route path="/blogs" element={<Blogs />} />
             <Route path="/blogs/:slug" element={<BlogDetail />} />
             <Route path="/professionals" element={<Professionals />} />
-            <Route path="/professional/:slug" element={<Professional />} />
             <Route path="/services" element={<Services />} />
-            <Route
-              path="/services/:providerSlug/:serviceSlug"
-              element={<ServiceDetail />}
-            />
             <Route path="/events" element={<Events />} />
             <Route path="/events/:id" element={<EventDetail />} />
             <Route path="/profile" element={<Profile />} />
