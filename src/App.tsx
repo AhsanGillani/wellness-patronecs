@@ -30,6 +30,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Loading wrapper component
 const AppContent = () => {
@@ -100,7 +101,14 @@ const AppContent = () => {
             <Route path="/services" element={<Services />} />
             <Route path="/events" element={<Events />} />
             <Route path="/events/:id" element={<EventDetail />} />
-            <Route path="/profile" element={<Profile />} />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/book/:providerSlug/:serviceSlug"
               element={<BookAppointment />}
@@ -119,8 +127,22 @@ const AppContent = () => {
               path="/signup/professional"
               element={<ProfessionalSignup />}
             />
-            <Route path="/doctor-dashboard" element={<DoctorDashboard />} />
-            <Route path="/admin" element={<AdminDashboard />} />
+            <Route
+              path="/doctor-dashboard"
+              element={
+                <ProtectedRoute requiredRole="professional">
+                  <DoctorDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requiredRole="admin">
+                  <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/notifications" element={<Notifications />} />
             <Route path="/notifications/:id" element={<NotificationDetail />} />
             <Route path="/live/:id" element={<LiveSession />} />
