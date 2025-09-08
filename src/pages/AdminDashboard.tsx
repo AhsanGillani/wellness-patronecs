@@ -328,8 +328,7 @@ const AdminDashboard = () => {
     if (profiles) {
       // Filter profiles to get only professionals
       const professionalProfiles = profiles.filter(
-        (profile) =>
-          profile.role === "professional" || profile.role === "doctor"
+        (profile) => profile.role === "professional"
       );
 
       const transformedProfessionals = professionalProfiles.map((profile) => {

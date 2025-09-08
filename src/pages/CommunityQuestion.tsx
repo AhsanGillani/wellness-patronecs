@@ -35,7 +35,7 @@ const CommunityQuestion = () => {
     if (!id) return;
     (async () => {
       try {
-        await supabase.rpc('increment_question_views', { qid: id });
+        await supabase.rpc('increment_question_views', { question_id: id });
       } catch {}
     })();
   }, [id]);

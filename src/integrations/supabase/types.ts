@@ -26,6 +26,7 @@ export type Database = {
           patient_profile_id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           price_cents: number
+          professional_id: string | null
           service_id: number
           start_time: string
           transaction_id: string | null
@@ -41,6 +42,7 @@ export type Database = {
           patient_profile_id: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           price_cents: number
+          professional_id?: string | null
           service_id: number
           start_time: string
           transaction_id?: string | null
@@ -56,6 +58,7 @@ export type Database = {
           patient_profile_id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           price_cents?: number
+          professional_id?: string | null
           service_id?: number
           start_time?: string
           transaction_id?: string | null
@@ -76,33 +79,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      availability_slots: {
-        Row: {
-          created_at: string
-          end_time: string
-          id: string
-          is_booked: boolean
-          professional_id: string
-          start_time: string
-        }
-        Insert: {
-          created_at?: string
-          end_time: string
-          id?: string
-          is_booked?: boolean
-          professional_id: string
-          start_time: string
-        }
-        Update: {
-          created_at?: string
-          end_time?: string
-          id?: string
-          is_booked?: boolean
-          professional_id?: string
-          start_time?: string
-        }
-        Relationships: []
       }
       availability_wishlist: {
         Row: {
@@ -890,6 +866,33 @@ export type Database = {
           },
         ]
       }
+      support_messages: {
+        Row: {
+          created_at: string
+          email: string
+          id: number
+          message: string
+          name: string
+          subject: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: number
+          message: string
+          name: string
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: number
+          message?: string
+          name?: string
+          subject?: string | null
+        }
+        Relationships: []
+      }
       tickets: {
         Row: {
           created_at: string
@@ -988,30 +991,6 @@ export type Database = {
           },
         ]
       }
-      user_roles: {
-        Row: {
-          assigned_at: string | null
-          assigned_by: string | null
-          id: string
-          role: Database["public"]["Enums"]["user_role"]
-          user_id: string
-        }
-        Insert: {
-          assigned_at?: string | null
-          assigned_by?: string | null
-          id?: string
-          role: Database["public"]["Enums"]["user_role"]
-          user_id: string
-        }
-        Update: {
-          assigned_at?: string | null
-          assigned_by?: string | null
-          id?: string
-          role?: Database["public"]["Enums"]["user_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
       withdrawals: {
         Row: {
           amount_cents: number
@@ -1090,6 +1069,18 @@ export type Database = {
       increment_question_views: {
         Args: { qid: string }
         Returns: undefined
+      }
+      is_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_patient: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
+      }
+      is_professional: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
     }
     Enums: {
