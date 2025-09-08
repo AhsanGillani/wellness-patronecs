@@ -298,23 +298,23 @@ export function useAppointments() {
     queryKey: ["appointments"],
     queryFn: async () => {
       try {
-        // Simplified query to avoid complex joins that cause timeouts
+        // Query appointments with patient details
         const { data, error } = await simpleSupabase
           .from("appointments")
           .select(`
-            id,
-            patient_profile_id,
-            service_id,
-            date,
-            start_time,
-            end_time,
-            appointment_status,
-            payment_status,
-            price_cents,
-            mode,
-            location_address,
-            transaction_id,
-            created_at
+            *,
+            patient_profiles:profiles!patient_profile_id(
+              id,
+              first_name,
+              last_name,
+              email,
+              avatar_url,
+              role
+            ),
+            services(
+              id,
+              name
+            )
           `)
           .order('date', { ascending: false });
 
@@ -414,7 +414,7 @@ export function useProfessionalAppointments(professionalId: string) {
       
       const serviceIds = servicesData.map(s => s.id);
       
-      // Then get appointments for these services
+      // Then get appointments for these services with patient details
       const { data, error } = await simpleSupabase
         .from("appointments")
         .select(`
@@ -423,11 +423,13 @@ export function useProfessionalAppointments(professionalId: string) {
             id,
             name
           ),
-          profiles(
+          patient_profiles:profiles!patient_profile_id(
             id,
             first_name,
             last_name,
-            email
+            email,
+            avatar_url,
+            role
           )
         `)
         .in("service_id", serviceIds)
