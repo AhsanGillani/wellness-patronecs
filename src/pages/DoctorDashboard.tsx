@@ -6,6 +6,10 @@ import {
   NotificationRow,
   usePatients,
   useProfessionalFeedback,
+  useAppointments,
+  useProfiles,
+  useServices,
+  useAllProfessionals,
 } from "@/hooks/useMarketplace";
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -82,6 +86,28 @@ import { formatTime12h } from "@/lib/time";
 const DoctorDashboard = () => {
   const navigate = useNavigate();
   const { profile, updateProfile, user } = useAuth();
+
+  // Use optimized hooks for data fetching
+  const {
+    data: appointments,
+    isLoading: appointmentsLoading,
+    error: appointmentsError,
+  } = useAppointments();
+  const {
+    data: profiles,
+    isLoading: profilesLoading,
+    error: profilesError,
+  } = useProfiles(1, 100);
+  const {
+    data: services,
+    isLoading: servicesLoading,
+    error: servicesError,
+  } = useServices(1, 100);
+  const { data: allProfessionals } = useAllProfessionals();
+
+  // Get patient data for appointments
+  const [patientData, setPatientData] = useState<Record<string, any>>({});
+  const [patientDataLoading, setPatientDataLoading] = useState(false);
 
   const [activeTab, setActiveTab] = useState("overview");
   const location = useLocation();
@@ -472,157 +498,210 @@ const DoctorDashboard = () => {
     } catch {}
   }, [location.search]);
 
-  // Load appointments from database
-  const loadAppointments = useCallback(async () => {
-    if (!profile?.id) return;
-    // If we already have data, keep UI responsive and refresh in background
-    setLoadingAppointments(paidAppointments.length === 0);
-    try {
-      // First get the professional ID from the professionals table
-      const { data: professionalData, error: profError } = await supabase
-        .from("professionals")
-        .select("id")
-        .eq("profile_id", profile.id)
-        .single();
+  // Transform appointments data using optimized hooks
+  const transformedAppointments = useMemo(() => {
+    if (
+      !appointments ||
+      !profiles ||
+      !services ||
+      !allProfessionals ||
+      !profile?.id
+    ) {
+      return [];
+    }
 
-      if (profError || !professionalData) {
-        console.error("Error getting professional ID:", profError);
-        return;
-      }
+    // Find the professional ID for this doctor
+    const professionalRecord = allProfessionals.find(
+      (p) => p.profile_id === profile.id
+    );
+    if (!professionalRecord) return [];
 
-      const professionalId = professionalData.id;
+    // Filter appointments for this professional's services
+    const professionalServiceIds = services
+      .filter((s) => s.professional_id === professionalRecord.id)
+      .map((s) => s.id);
 
-      // Get appointments with patient and service details, filtering by services that belong to this professional
-      const appointmentsAbort = new AbortController();
-      const appointmentsTimeout = setTimeout(() => {
-        appointmentsAbort.abort();
-      }, 12000);
-      const { data: appointments, error } = await supabase
-        .from("appointments")
-        .select(
-          `
-          id,
-          date,
-          start_time,
-          end_time,
-          price_cents,
-          mode,
-          appointment_status,
-          payment_status,
-          patient_profile_id,
-          service_id,
-          location_address,
-          profiles!appointments_patient_profile_id_fkey(
-            first_name,
-            last_name,
-            email,
-            avatar_url
-          ),
-          services!appointments_service_id_fkey(
-            name,
-            duration_min,
-            professional_id
-          )
-        `
-        )
-        .eq("services.professional_id", professionalId)
-        .order("date", { ascending: false })
-        .limit(100)
-        .abortSignal(appointmentsAbort.signal);
-      clearTimeout(appointmentsTimeout);
+    const professionalAppointments = appointments.filter((apt) =>
+      professionalServiceIds.includes(apt.service_id)
+    );
 
-      if (error) {
-        console.error("Error loading appointments:", error);
-        return;
-      }
+    // Transform to PaidAppointment format
+    const nowTs = Date.now();
+    return professionalAppointments.map((apt) => {
+      // Get patient data from our custom fetch
+      const patientProfile = patientData[apt.patient_profile_id];
 
-      // Transform database data to PaidAppointment format and auto-mark missed sessions
-      const nowTs = Date.now();
-      const transformedAppointments: PaidAppointment[] = (
-        appointments || []
-      ).map((apt) => {
-        let status = apt.appointment_status || "scheduled";
-        try {
-          if (
-            status === "scheduled" &&
-            apt.date &&
-            apt.start_time &&
-            apt.services?.duration_min
-          ) {
-            const [y, m, d] = String(apt.date).split("-").map(Number);
-            const [hh, mm] = String(apt.start_time).split(":").map(Number);
-            const start = new Date(
-              y,
-              (m || 1) - 1,
-              d || 1,
-              hh || 0,
-              mm || 0,
-              0,
-              0
-            );
-            const end = new Date(
-              start.getTime() + Number(apt.services.duration_min) * 60 * 1000
-            );
-            if (nowTs > end.getTime()) {
-              status = "no_show";
-              (async () => {
-                try {
-                  await supabase
-                    .from("appointments")
-                    .update({ appointment_status: "no_show" })
-                    .eq("id", apt.id);
-                } catch {}
-              })();
-            }
+      // Find service details
+      const service = services.find((s) => s.id === apt.service_id);
+
+      let status = apt.appointment_status || "scheduled";
+      try {
+        if (
+          status === "scheduled" &&
+          apt.date &&
+          apt.start_time &&
+          service?.duration_min
+        ) {
+          const [y, m, d] = String(apt.date).split("-").map(Number);
+          const [hh, mm] = String(apt.start_time).split(":").map(Number);
+          const start = new Date(
+            y,
+            (m || 1) - 1,
+            d || 1,
+            hh || 0,
+            mm || 0,
+            0,
+            0
+          );
+          const end = new Date(
+            start.getTime() + Number(service.duration_min) * 60 * 1000
+          );
+          if (nowTs > end.getTime()) {
+            status = "no_show";
+            // Update in background
+            (async () => {
+              try {
+                await supabase
+                  .from("appointments")
+                  .update({ appointment_status: "no_show" })
+                  .eq("id", apt.id);
+              } catch {}
+            })();
           }
-        } catch {}
-        return {
-          id: apt.id,
-          patientName: `${apt.profiles?.first_name || "Unknown"} ${
-            apt.profiles?.last_name || "Patient"
-          }`,
-          patientEmail: apt.profiles?.email || "no-email@example.com",
-          patientAvatar:
-            apt.profiles?.avatar_url ||
-            "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=256&auto=format&fit=crop",
-          serviceId: apt.service_id,
-          serviceName: apt.services?.name || "Unknown Service",
-          mode: apt.mode,
-          date: apt.date,
-          time: format(new Date(`2000-01-01T${apt.start_time}`), "hh:mm a"),
-          price: apt.price_cents / 100,
-          paymentStatus: apt.payment_status,
-          transactionId: `TXN-${apt.id.toString().padStart(6, "0")}`,
-          locationAddress: apt.location_address || "",
-          status,
-        } as PaidAppointment;
+        }
+      } catch {}
+
+      return {
+        id: apt.id,
+        patientName: patientProfile
+          ? `${patientProfile.first_name || ""} ${
+              patientProfile.last_name || ""
+            }`.trim() || "Unknown Patient"
+          : "Unknown Patient",
+        patientEmail: patientProfile?.email || "no-email@example.com",
+        patientAvatar:
+          patientProfile?.avatar_url ||
+          "https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=256&auto=format&fit=crop",
+        serviceId: apt.service_id,
+        serviceName: service?.name || "Unknown Service",
+        mode: apt.mode,
+        date: apt.date,
+        time: format(new Date(`2000-01-01T${apt.start_time}`), "hh:mm a"),
+        price: apt.price_cents / 100,
+        paymentStatus: apt.payment_status,
+        transactionId: `TXN-${apt.id.toString().padStart(6, "0")}`,
+        locationAddress: apt.location_address || "",
+        status,
+      } as PaidAppointment;
+    });
+  }, [
+    appointments,
+    profiles,
+    services,
+    allProfessionals,
+    profile?.id,
+    patientData,
+  ]);
+
+  // Update paidAppointments when transformed data changes
+  useEffect(() => {
+    setPaidAppointments(transformedAppointments);
+    setAppointmentsLoaded(true);
+    setLoadingAppointments(false);
+  }, [transformedAppointments]);
+
+  useEffect(() => {
+    if (!appointments || appointments.length === 0) return;
+
+    const fetchPatientData = async () => {
+      const patientIds = [
+        ...new Set(appointments.map((apt) => apt.patient_profile_id)),
+      ];
+
+      // Skip if no patient IDs or if we already have the data
+      if (patientIds.length === 0) return;
+
+      setPatientDataLoading(true);
+      const patientDataMap: Record<string, any> = {};
+
+      // Use Promise.all for better performance
+      const promises = patientIds.map(async (patientId) => {
+        try {
+          const { data, error } = await supabase
+            .from("profiles")
+            .select("id, first_name, last_name, email, avatar_url")
+            .eq("id", patientId)
+            .single();
+
+          if (data && !error) {
+            patientDataMap[patientId] = data;
+          }
+        } catch (err) {
+          console.error("Error fetching patient data for ID:", patientId, err);
+        }
       });
 
-      setPaidAppointments(transformedAppointments);
-      setAppointmentsLoaded(true);
-      // write session cache
-      try {
-        sessionStorage.setItem(
-          apptCacheKey(profile?.id),
-          JSON.stringify({ ts: Date.now(), data: transformedAppointments })
-        );
-      } catch {}
-    } catch (error) {
-      console.error("Error loading appointments:", error);
-    } finally {
-      setLoadingAppointments(false);
-    }
-  }, [profile?.id, paidAppointments.length]);
+      await Promise.all(promises);
+      setPatientData(patientDataMap);
+      setPatientDataLoading(false);
+    };
 
-  // Load appointments first time we visit a relevant tab
-  useEffect(() => {
-    if (
-      (activeTab === "appointments" || activeTab === "overview") &&
-      !appointmentsLoaded
-    ) {
-      loadAppointments();
-    }
-  }, [activeTab, appointmentsLoaded, loadAppointments]);
+    fetchPatientData();
+  }, [appointments]);
+
+  // Transform services data to match expected Service interface
+  const transformedServices = useMemo(() => {
+    if (!services || !profile?.id) return [];
+
+    // Find the professional ID for this doctor
+    const professionalRecord = allProfessionals?.find(
+      (p) => p.profile_id === profile.id
+    );
+    if (!professionalRecord) return [];
+
+    // Filter services for this professional
+    const professionalServices = services.filter(
+      (s) => s.professional_id === professionalRecord.id
+    );
+
+    return professionalServices.map((service) => ({
+      id: service.id,
+      name: service.name,
+      category: "Consultation", // Default category, could be enhanced later
+      durationMin: service.duration_min || 30,
+      price: service.price_cents ? service.price_cents / 100 : 0,
+      mode: service.mode === "virtual" ? "Virtual" : "In-person",
+      description: service.description || "",
+      benefits:
+        service.benefits && typeof service.benefits === "string"
+          ? service.benefits.split(",").map((b) => b.trim())
+          : Array.isArray(service.benefits)
+          ? service.benefits
+          : [],
+      imageUrl: service.image_url || "",
+      active: service.active || false,
+      locationAddress: service.location_address || "",
+      availability: service.availability
+        ? {
+            days: service.availability.days || [],
+            scheduleType: service.availability.scheduleType || "same",
+            numberOfSlots: service.availability.numberOfSlots || 1,
+            timeSlots: service.availability.timeSlots || [
+              { start: "", end: "" },
+            ],
+            customSchedules: service.availability.customSchedules || {},
+          }
+        : {
+            days: [],
+            scheduleType: "same" as const,
+            numberOfSlots: 1,
+            timeSlots: [{ start: "", end: "" }],
+            customSchedules: {},
+          },
+    }));
+  }, [services, allProfessionals, profile?.id]);
+
+  // Appointments are now loaded automatically via optimized hooks
 
   // Hydrate appointments from session cache on mount/profile change
   useEffect(() => {
@@ -978,7 +1057,7 @@ const DoctorDashboard = () => {
   const [formMode, setFormMode] = useState<"create" | "edit">("create");
   const [editingServiceId, setEditingServiceId] = useState<number | null>(null);
 
-  const [services, setServices] = useState<Service[]>([]);
+  const [localServices, setLocalServices] = useState<Service[]>([]);
   const [loadingServices, setLoadingServices] = useState(false);
   const [newService, setNewService] = useState<NewService>({
     name: "",
@@ -1078,7 +1157,7 @@ const DoctorDashboard = () => {
       );
 
       console.log("Mapped services:", mappedServices);
-      setServices(mappedServices);
+      setLocalServices(mappedServices);
     } catch (e) {
       console.error("Error in loadServices:", e);
     } finally {
@@ -2016,7 +2095,7 @@ const DoctorDashboard = () => {
 
           {/* Appointments Table/List */}
           <div className="bg-white rounded-lg border overflow-hidden">
-            {loadingAppointments && (
+            {(loadingAppointments || patientDataLoading) && (
               <div className="px-6 py-8 text-center">
                 <div className="inline-flex items-center space-x-2 text-blue-600">
                   <RefreshCw className="w-5 h-5 animate-spin" />
@@ -2024,7 +2103,7 @@ const DoctorDashboard = () => {
                 </div>
               </div>
             )}
-            {!loadingAppointments && (
+            {!(loadingAppointments || patientDataLoading) && (
               <>
                 <div className="hidden md:grid grid-cols-12 gap-4 px-6 py-3 border-b text-xs font-medium text-gray-500">
                   <div className="col-span-3">Patient</div>
@@ -4035,7 +4114,10 @@ const DoctorDashboard = () => {
                         .select("id")
                         .limit(1);
 
-                      if (!services || services.length === 0) {
+                      if (
+                        !transformedServices ||
+                        transformedServices.length === 0
+                      ) {
                         setNotificationMessage({
                           type: "error",
                           message:
@@ -4798,6 +4880,7 @@ const DoctorDashboard = () => {
               description: newService.description,
               benefits: benefits,
               image_url: newService.imageUrl || null,
+              location_address: newService.locationAddress || null,
               availability: {
                 days: newService.availableDays,
                 scheduleType: newService.scheduleType,
@@ -4989,6 +5072,7 @@ const DoctorDashboard = () => {
             description: newService.description,
             benefits: benefits,
             image_url: newService.imageUrl || null,
+            location_address: newService.locationAddress || null,
             active: newService.active,
             availability: {
               days: newService.availableDays,
@@ -5768,7 +5852,7 @@ const DoctorDashboard = () => {
             </h3>
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-500">
-                {services.length} total
+                {transformedServices.length} total
               </span>
               <button
                 onClick={loadServices}
@@ -5825,7 +5909,7 @@ const DoctorDashboard = () => {
                   </div>
                 ))}
               </div>
-            ) : services.length === 0 ? (
+            ) : transformedServices.length === 0 ? (
               <div className="text-center py-10">
                 <div className="text-gray-500">
                   No services yet. Create your first service to get started!
@@ -5833,7 +5917,7 @@ const DoctorDashboard = () => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {services.map((service) => (
+                {transformedServices.map((service) => (
                   <div
                     key={service.id}
                     className="border rounded-xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow"

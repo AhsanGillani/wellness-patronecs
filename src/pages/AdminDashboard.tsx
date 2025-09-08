@@ -15,6 +15,8 @@ import {
   useAllNotifications,
   useWithdrawals,
   useSupportMessages,
+  useAllProfessionals,
+  useAllCategories,
 } from "@/hooks/useMarketplace";
 
 import { useQueryClient } from "@tanstack/react-query";
@@ -90,6 +92,7 @@ const AdminDashboard = () => {
   const [userModalTab, setUserModalTab] = useState<"profile" | "services">(
     "profile"
   );
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
   const [showProfessionalModal, setShowProfessionalModal] = useState(false);
   const [selectedProfessional, setSelectedProfessional] = useState<
     (typeof pros)[0] | null
@@ -150,25 +153,113 @@ const AdminDashboard = () => {
   // Query client for invalidating queries
   const queryClient = useQueryClient();
 
+  // Prefetch data for better performance
+  useEffect(() => {
+    // Prefetch data that might be needed
+    queryClient.prefetchQuery({
+      queryKey: ["profiles", 1, 100],
+      staleTime: 300_000,
+    });
+    queryClient.prefetchQuery({
+      queryKey: ["services", 1, 100],
+      staleTime: 300_000,
+    });
+    queryClient.prefetchQuery({
+      queryKey: ["appointments"],
+      staleTime: 300_000,
+    });
+  }, [queryClient]);
+
   // Database data
   const {
     data: profiles,
     isLoading: profilesLoading,
     error: profilesError,
-  } = useProfiles();
+  } = useProfiles(1, 100); // Fetch up to 100 profiles to ensure we get all users
   const {
     data: services,
     isLoading: servicesLoading,
     error: servicesError,
-  } = useServices();
+  } = useServices(1, 100); // Fetch up to 100 services
   const {
     data: appointments,
     isLoading: appointmentsLoading,
     error: appointmentsError,
   } = useAppointments();
+
+  // Test admin status and connectivity
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      try {
+        console.log("Testing Supabase connectivity...");
+
+        // Test basic connectivity
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+        console.log("Auth test result:", { user: !!user, authError });
+
+        if (user) {
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("id, role, verification_status")
+            .eq("user_id", user.id)
+            .single();
+
+          console.log("Profile test result:", {
+            profile: !!profile,
+            profileError,
+          });
+
+          // Test admin function
+          const { data: isAdmin, error: adminError } = await supabase.rpc(
+            "get_current_user_role"
+          );
+          console.log("Admin function test result:", { isAdmin, adminError });
+        }
+      } catch (error) {
+        console.error("Error checking admin status:", error);
+      }
+    };
+
+    checkAdminStatus();
+  }, []);
+
   const { data: blogs = [], isLoading: blogsLoading } = useAllBlogs();
   const { data: withdrawals = [], isLoading: withdrawalsLoading } =
     useWithdrawals();
+  const { data: allProfessionals = [], isLoading: professionalsLoading } =
+    useAllProfessionals();
+  const { data: allCategories = [], isLoading: categoriesLoading } =
+    useAllCategories();
+
+  // Check if any critical data is still loading
+  const isDataLoading =
+    profilesLoading ||
+    servicesLoading ||
+    appointmentsLoading ||
+    categoriesLoading;
+
+  // Add loading timeout to prevent infinite loading
+  useEffect(() => {
+    if (isDataLoading) {
+      const timeout = setTimeout(() => {
+        setLoadingTimeout(true);
+      }, 10000); // 10 second timeout
+
+      return () => clearTimeout(timeout);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [isDataLoading]);
+
+  // Debug categories data (disabled for performance)
+  // console.log("Categories Debug:", {
+  //   allCategories: allCategories?.length || 0,
+  //   categoriesLoading,
+  //   categoriesData: allCategories,
+  // });
 
   // Professional-specific data hooks
   const [selectedProfessionalId, setSelectedProfessionalId] = useState<
@@ -235,7 +326,6 @@ const AdminDashboard = () => {
   // Update professionals when profiles data changes
   useEffect(() => {
     if (profiles) {
-      console.log("Profiles data:", profiles);
       // Filter profiles to get only professionals
       const professionalProfiles = profiles.filter(
         (profile) => profile.role === "professional"
@@ -262,7 +352,6 @@ const AdminDashboard = () => {
           lastActive: new Date(profile.created_at).toLocaleDateString(), // Use created_at as fallback
         };
       });
-      console.log("Transformed professionals:", transformedProfessionals);
       setPros(transformedProfessionals);
     }
   }, [profiles]);
@@ -288,29 +377,18 @@ const AdminDashboard = () => {
     dbProfiles: any[],
     dbAppointments: any[]
   ) => {
-    console.log("transformServicesToAdminFormat called with:", {
-      dbServices,
-      dbProfiles,
-    });
     if (!dbServices || !dbProfiles) {
-      console.log("No services or profiles data, returning empty array");
       return [];
     }
 
     return dbServices.map((service) => {
-      console.log("Processing service:", service);
-      console.log("Service dates:", {
-        created_at: service.created_at,
-        updated_at: service.updated_at,
-        created_at_type: typeof service.created_at,
-        updated_at_type: typeof service.updated_at,
-      });
-      // Prefer nested professional.profile from services query; fallback to profiles list
-      const nestedProfile = service.professionals?.profile || null;
-      const professional =
-        nestedProfile ||
-        dbProfiles.find((p) => p.id === service.professional_id) ||
-        null;
+      // Get professional data by looking up the professional_id in the professionals table
+      const professionalRecord = allProfessionals.find(
+        (p) => p.id === service.professional_id
+      );
+      const professional = professionalRecord
+        ? dbProfiles.find((p) => p.id === professionalRecord.profile_id)
+        : null;
 
       // Get professional name
       const doctorName = professional
@@ -320,8 +398,21 @@ const AdminDashboard = () => {
         : "Unknown Professional";
       const doctorEmail = professional?.email || "No email";
 
-      // Get category name
-      const category = service.categories?.name || "Uncategorized";
+      // Get category name from categories data
+      const categoryRecord = allCategories.find(
+        (c) => c.id === service.category_id
+      );
+      const category = categoryRecord?.name || "Uncategorized";
+
+      // Debug category lookup (disabled for performance)
+      // console.log("Service category lookup:", {
+      //   serviceId: service.id,
+      //   serviceName: service.name,
+      //   categoryId: service.category_id,
+      //   categoryRecord,
+      //   category,
+      //   allCategories: allCategories.map((c) => ({ id: c.id, name: c.name })),
+      // });
 
       // Determine status based on active field
       const status = service.active ? "active" : "inactive";
@@ -351,15 +442,6 @@ const AdminDashboard = () => {
 
       // Parse availability data from service.availability JSONB field
       const availability = service.availability || {};
-      console.log("Service availability data:", service.name, {
-        availability,
-        days: availability.days,
-        scheduleType: availability.scheduleType,
-        timeSlots: availability.timeSlots,
-        slots: availability.slots,
-        numberOfSlots: availability.numberOfSlots,
-        customSchedules: availability.customSchedules,
-      });
 
       // Handle both old and new availability data structures
       const availableDays: string[] = availability.days || [];
@@ -378,15 +460,6 @@ const AdminDashboard = () => {
 
       // Format time slots for display
       const formatTimeSlots = (slots: any) => {
-        console.log(
-          "formatTimeSlots called with:",
-          slots,
-          "type:",
-          typeof slots,
-          "isArray:",
-          Array.isArray(slots)
-        );
-
         if (!slots || slots.length === 0) return "No time slots configured";
 
         // Handle array of strings (time slots)
@@ -395,7 +468,6 @@ const AdminDashboard = () => {
           slots.length > 0 &&
           typeof slots[0] === "string"
         ) {
-          console.log("Formatting as string array:", slots);
           return (slots as string[]).join(", ");
         }
 
@@ -405,13 +477,11 @@ const AdminDashboard = () => {
           slots.length > 0 &&
           typeof slots[0] === "object"
         ) {
-          console.log("Formatting as object array:", slots);
           return (slots as Array<{ start: string; end: string }>)
             .map((slot) => `${slot.start} - ${slot.end}`)
             .join(", ");
         }
 
-        console.log("No valid format found for slots:", slots);
         return "No time slots configured";
       };
 
@@ -525,12 +595,8 @@ const AdminDashboard = () => {
 
   // All services from real database (transformed to AdminDashboard format)
   const allServices = useMemo(() => {
-    console.log("AdminDashboard - services from database:", services);
-    console.log("AdminDashboard - profiles from database:", profiles);
-
     // Handle loading states
     if (servicesLoading || profilesLoading) {
-      console.log("Still loading data...");
       return [];
     }
 
@@ -545,12 +611,13 @@ const AdminDashboard = () => {
       profiles || [],
       appointments || []
     );
-    console.log("AdminDashboard - transformed services:", transformed);
     return transformed;
   }, [
     services,
     profiles,
     appointments,
+    allProfessionals,
+    allCategories,
     servicesLoading,
     profilesLoading,
     servicesError,
@@ -1095,30 +1162,25 @@ const AdminDashboard = () => {
 
   // Generate transactions from real appointment data
   const transactions = useMemo(() => {
-    if (!appointments || !profiles) return [];
+    if (!appointments || !profiles || !services || !allProfessionals) return [];
 
     return appointments.slice(0, 10).map((appointment, index) => {
-      const service = appointment.services; // Service data is now joined
+      // Find service by service_id
+      const service = services.find((s) => s.id === appointment.service_id);
 
-      // Debug logging
-      console.log("Transaction appointment data:", {
-        appointmentId: appointment.id,
-        service: service,
-        serviceProfessionalId: service?.professional_id,
-        allProfiles: profiles.map((p) => ({
-          id: p.id,
-          name: `${p.first_name} ${p.last_name}`,
-        })),
-      });
+      // Find professional by professional_id
+      const professionalRecord = allProfessionals.find(
+        (p) => p.id === service?.professional_id
+      );
+      const professionalProfile = professionalRecord
+        ? profiles.find((p) => p.id === professionalRecord.profile_id)
+        : null;
 
       const patientProfile = profiles.find(
         (p) => p.id === appointment.patient_profile_id
       );
 
-      // Get professional profile from the nested query
-      const professionalProfile = service?.professionals?.profile || null;
-
-      const amount = service ? Math.round(service.price_cents / 100) : 0;
+      const amount = service ? Math.round((service.price_cents || 0) / 100) : 0;
       const fee = Math.round(amount * 0.1); // 10% platform fee
       const net = amount - fee;
 
@@ -1142,7 +1204,7 @@ const AdminDashboard = () => {
         method: "Card", // Default method since we don't store payment method
       };
     });
-  }, [appointments, profiles]);
+  }, [appointments, profiles, services, allProfessionals]);
 
   // Professional services and appointments data - now fetched from database
 
@@ -1211,8 +1273,6 @@ const AdminDashboard = () => {
 
   const approveProfessional = async (id: string) => {
     try {
-      console.log("Approving professional with ID:", id);
-
       // First check if current user is admin
       const {
         data: { user },
@@ -1223,8 +1283,6 @@ const AdminDashboard = () => {
           .select("role")
           .eq("user_id", user.id)
           .single();
-
-        console.log("Current user role:", currentUserProfile?.role);
 
         if (currentUserProfile?.role !== "admin") {
           console.error(
@@ -1240,8 +1298,6 @@ const AdminDashboard = () => {
         .select("*")
         .eq("id", id)
         .single();
-
-      console.log("Current profile before update:", currentProfile);
 
       // Try updating the verification_status field
       const { data, error } = await supabase
@@ -1260,27 +1316,20 @@ const AdminDashboard = () => {
         );
 
         // If that fails, let's try updating a different field to see if it's a general issue
-        console.log("Trying to update bio field as a test...");
         const { data: testData, error: testError } = await supabase
           .from("profiles")
           .update({ bio: "Test update - " + new Date().toISOString() })
           .eq("id", id)
           .select();
 
-        console.log("Test update result:", { testData, testError });
-
         if (testError) {
           console.error("Even test update failed:", testError);
           return;
         } else {
-          console.log(
-            "Test update succeeded, so the issue is with verification_status field"
-          );
+          // Test update succeeded
         }
         return;
       }
-
-      console.log("Successfully updated verification_status:", data);
 
       // Let's verify the update worked by reading the profile again
       const { data: updatedProfile, error: verifyError } = await supabase
@@ -1288,8 +1337,6 @@ const AdminDashboard = () => {
         .select("*")
         .eq("id", id)
         .single();
-
-      console.log("Profile after update:", updatedProfile);
 
       // Update both local states to reflect the change immediately
       setPros((prev) =>
@@ -1302,8 +1349,6 @@ const AdminDashboard = () => {
       // Invalidate and refetch the profiles data to ensure consistency
       await queryClient.invalidateQueries({ queryKey: ["profiles"] });
       await queryClient.invalidateQueries({ queryKey: ["professionals"] });
-
-      console.log("Professional approved successfully!");
     } catch (error) {
       console.error("Error approving professional:", error);
     }
@@ -1335,8 +1380,6 @@ const AdminDashboard = () => {
           return;
         }
 
-        console.log("Successfully updated database:", data);
-
         // Update both local states to reflect the change immediately
         setPros((prev) =>
           prev.map((p) =>
@@ -1351,8 +1394,6 @@ const AdminDashboard = () => {
         await queryClient.invalidateQueries({ queryKey: ["profiles"] });
         await queryClient.invalidateQueries({ queryKey: ["professionals"] });
 
-        console.log("Professional rejected successfully!");
-
         setShowRejectionModal(false);
         setRejectionReason("");
         setProfessionalToReject(null);
@@ -1366,7 +1407,6 @@ const AdminDashboard = () => {
     setServicesPending((prev) => prev.filter((s) => s.id !== id));
   const cancelEvent = (id: number) => {
     // Events data comes from queries, not local state - we'd need to call a mutation here
-    console.log("Cancel event:", id);
   };
   const closeReport = (id: string) =>
     setReports((prev) =>
@@ -1389,7 +1429,7 @@ const AdminDashboard = () => {
 
     // Transform appointment data to match the expected format
     return patientAppointments.map((appointment) => {
-      const service = appointment.services;
+      const service = services?.find((s) => s.id === appointment.service_id);
       const professionalProfile = service
         ? profiles?.find((p) => p.id === service.professional_id)
         : null;
@@ -2028,57 +2068,61 @@ const AdminDashboard = () => {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {professionalAppointments.map((appointment: any) => (
-                        <div
-                          key={appointment.id}
-                          className="bg-gray-50 rounded-lg p-4 border"
-                        >
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <h4 className="font-medium text-gray-900">
-                                {appointment.services?.name ||
-                                  "Unknown Service"}
-                              </h4>
-                              <p className="text-sm text-gray-600">
-                                Patient: {appointment.profiles?.first_name}{" "}
-                                {appointment.profiles?.last_name}
-                              </p>
-                            </div>
-                            <span
-                              className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                                appointment.status === "completed"
-                                  ? "bg-emerald-100 text-emerald-800"
-                                  : appointment.status === "scheduled"
-                                  ? "bg-blue-100 text-blue-800"
-                                  : "bg-gray-100 text-gray-800"
-                              }`}
-                            >
-                              {appointment.status}
-                            </span>
-                          </div>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                            <div>
-                              <span className="text-gray-600">Date:</span>
-                              <p className="text-gray-900">
-                                {appointment.date}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-gray-600">Time:</span>
-                              <p className="text-gray-900">
-                                {appointment.start_time} -{" "}
-                                {appointment.end_time}
-                              </p>
-                            </div>
-                            <div>
-                              <span className="text-gray-600">Status:</span>
-                              <p className="text-gray-900 capitalize">
+                      {professionalAppointments.map((appointment: any) => {
+                        const service = (services || [])?.find(
+                          (s) => s.id === appointment.service_id
+                        );
+                        return (
+                          <div
+                            key={appointment.id}
+                            className="bg-gray-50 rounded-lg p-4 border"
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <h4 className="font-medium text-gray-900">
+                                  {service?.name || "Unknown Service"}
+                                </h4>
+                                <p className="text-sm text-gray-600">
+                                  Patient: {appointment.profiles?.first_name}{" "}
+                                  {appointment.profiles?.last_name}
+                                </p>
+                              </div>
+                              <span
+                                className={`inline-flex px-2 py-1 text-xs rounded-full ${
+                                  appointment.status === "completed"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : appointment.status === "scheduled"
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
                                 {appointment.status}
-                              </p>
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                              <div>
+                                <span className="text-gray-600">Date:</span>
+                                <p className="text-gray-900">
+                                  {appointment.date}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-gray-600">Time:</span>
+                                <p className="text-gray-900">
+                                  {appointment.start_time} -{" "}
+                                  {appointment.end_time}
+                                </p>
+                              </div>
+                              <div>
+                                <span className="text-gray-600">Status:</span>
+                                <p className="text-gray-900 capitalize">
+                                  {appointment.status}
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2314,16 +2358,9 @@ const AdminDashboard = () => {
       );
     }
 
-    console.log("All pros:", pros);
-    console.log("Professional view:", professionalView);
-
     const verifiedPros = pros.filter((p) => p.verification === "verified");
     const pendingPros = pros.filter((p) => p.verification === "pending");
     const rejectedPros = pros.filter((p) => p.verification === "rejected");
-
-    console.log("Verified pros:", verifiedPros);
-    console.log("Pending pros:", pendingPros);
-    console.log("Rejected pros:", rejectedPros);
 
     const currentPros =
       professionalView === "verified"
@@ -3476,11 +3513,6 @@ const AdminDashboard = () => {
                         Preview
                       </button>
                       {(() => {
-                        console.log("Rendering actions for blog:", {
-                          id: blog.id,
-                          title: blog.title,
-                          visibility: blog.visibility,
-                        });
                         return blog.visibility === "draft" ? (
                           <button
                             onClick={async () => {
@@ -3804,14 +3836,6 @@ const AdminDashboard = () => {
       error,
     } = useAllNotifications();
 
-    // Debug logging
-    console.log("AdminDashboard - Notifications data:", {
-      notifications,
-      isLoading,
-      error,
-      count: notifications.length,
-      sampleNotification: notifications[0],
-    });
     const createNotification = useCreateNotification();
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [newNotification, setNewNotification] = useState({
@@ -4314,12 +4338,18 @@ const AdminDashboard = () => {
 
   // Earnings tab
   const renderEarnings = () => {
-    // Calculate real earnings from appointments and services
-    const totalRevenue = chartData.reduce((s, m) => s + m.revenue, 0);
-    const totalUsers = chartData[chartData.length - 1]?.users ?? 0;
-    const totalProfessionals =
-      chartData[chartData.length - 1]?.professionals ?? 0;
-    const totalServices = chartData[chartData.length - 1]?.services ?? 0;
+    // Calculate real earnings from actual data
+    const totalRevenue =
+      (appointments || []).reduce(
+        (sum, appointment) => sum + (appointment.price_cents || 0),
+        0
+      ) / 100;
+
+    const totalUsers = (profiles || []).length;
+    const totalProfessionals = (profiles || []).filter(
+      (p) => p.role === "professional"
+    ).length;
+    const totalServices = (services || []).length;
 
     // Use the transactions data calculated at the top level
 
@@ -4884,6 +4914,155 @@ const AdminDashboard = () => {
     const categories = allServices.map((service) => service.category);
     return ["all", ...Array.from(new Set(categories))];
   };
+
+  // Show error state if there are critical errors
+  if (profilesError || servicesError || appointmentsError) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="space-y-6">
+            <div className="bg-white rounded-xl border p-8">
+              <div className="text-center text-red-600">
+                <h2 className="text-xl font-semibold mb-4">
+                  Error Loading Data
+                </h2>
+                <div className="space-y-2 mb-4">
+                  {profilesError && (
+                    <p className="text-sm">
+                      <strong>Profiles Error:</strong>{" "}
+                      {profilesError.message || "Failed to fetch profiles"}
+                    </p>
+                  )}
+                  {servicesError && (
+                    <p className="text-sm">
+                      <strong>Services Error:</strong>{" "}
+                      {servicesError.message || "Failed to fetch services"}
+                    </p>
+                  )}
+                  {appointmentsError && (
+                    <p className="text-sm">
+                      <strong>Appointments Error:</strong>{" "}
+                      {appointmentsError.message ||
+                        "Failed to fetch appointments"}
+                    </p>
+                  )}
+                </div>
+                <div className="text-sm text-gray-600 mb-4">
+                  <p>This might be due to:</p>
+                  <ul className="list-disc list-inside mt-2 space-y-1">
+                    <li>Network connectivity issues</li>
+                    <li>Supabase service temporarily unavailable</li>
+                    <li>Authentication problems</li>
+                    <li>Database connection issues</li>
+                  </ul>
+                </div>
+                <div className="space-x-4">
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Retry
+                  </button>
+                  <button
+                    onClick={async () => {
+                      console.log("Testing connectivity...");
+                      try {
+                        const { data, error } = await supabase
+                          .from("profiles")
+                          .select("count")
+                          .limit(1);
+                        console.log("Connectivity test result:", {
+                          data,
+                          error,
+                        });
+                        alert(
+                          `Connectivity test: ${
+                            error ? "FAILED - " + error.message : "SUCCESS"
+                          }`
+                        );
+                      } catch (err) {
+                        console.error("Connectivity test failed:", err);
+                        alert(`Connectivity test: FAILED - ${err.message}`);
+                      }
+                    }}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  >
+                    Test Connection
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Clear React Query cache and retry
+                      window.location.reload();
+                    }}
+                    className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                  >
+                    Clear Cache & Retry
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state if critical data is still loading
+  if (isDataLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="space-y-6">
+            {loadingTimeout ? (
+              <div className="bg-white rounded-xl border p-8">
+                <div className="text-center text-amber-600">
+                  <h2 className="text-xl font-semibold mb-4">
+                    Loading is taking longer than expected
+                  </h2>
+                  <p className="mb-4">
+                    This might be due to network issues or database performance.
+                  </p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Skeleton for summary cards */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div
+                      key={i}
+                      className="bg-white rounded-xl p-4 border animate-pulse"
+                    >
+                      <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                      <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Skeleton for main content */}
+                <div className="bg-white rounded-xl border p-6 animate-pulse">
+                  <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+                  <div className="space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="h-4 bg-gray-200 rounded"></div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">

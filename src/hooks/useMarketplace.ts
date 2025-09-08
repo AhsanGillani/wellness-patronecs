@@ -90,18 +90,32 @@ export function useProfiles(page = 1, pageSize = 20) {
   const result = useQuery({
     queryKey: ["profiles", page, pageSize],
     queryFn: async () => {
-      const { data, error } = await simpleSupabase
-        .from("profiles")
-        .select("id,user_id,role,slug,first_name,last_name,avatar_url,bio,specialization,years_experience,location,verification_status,created_at,email,phone")
-        .order("created_at", { ascending: false })
-        .range(from, to);
-      if (error) throw error;
-      return data || [];
+      try {
+        console.log("Fetching profiles...", { page, pageSize, from, to });
+        const { data, error } = await simpleSupabase
+          .from("profiles")
+          .select("id,user_id,role,slug,first_name,last_name,avatar_url,bio,specialization,years_experience,location,verification_status,created_at,email,phone")
+          .order("created_at", { ascending: false })
+          .range(from, to);
+        
+        if (error) {
+          console.error("Profiles query error:", error);
+          throw error;
+        }
+        
+        console.log("Profiles fetched successfully:", data?.length || 0);
+        return data || [];
+      } catch (err) {
+        console.error("Exception in useProfiles:", err);
+        throw err;
+      }
     },
-    retry: 2,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
-    staleTime: 60_000,
+    retry: 1,
+    retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 2000),
+    staleTime: 300_000, // 5 minutes cache
     refetchOnWindowFocus: false,
+    refetchOnMount: true, // Allow refetch on mount
+    refetchOnReconnect: false,
   });
 
   // Add legacy compatibility properties
@@ -227,21 +241,48 @@ export function useServices(page = 1, pageSize = 20) {
   const result = useQuery({
     queryKey: ["services", page, pageSize],
     queryFn: async () => {
-      const { data, error } = await (simpleSupabase as any)
-        .from("services")
-        .select(
-          "id,name,slug,duration_min,price_cents,mode,active,image_url,created_at,professional_id"
-        )
-        .eq("active", true)
-        .order("created_at", { ascending: false })
-        .range(from, to);
-      if (error) throw error;
-      return data || [];
+      try {
+        console.log("Fetching services...", { page, pageSize, from, to });
+        // Simplified query to avoid complex joins that cause timeouts
+        const { data, error } = await (simpleSupabase as any)
+          .from("services")
+          .select(`
+            id,
+            name,
+            slug,
+            duration_min,
+            price_cents,
+            mode,
+            active,
+            image_url,
+            created_at,
+            updated_at,
+            professional_id,
+            description,
+            category_id
+          `)
+          .eq("active", true)
+          .order("created_at", { ascending: false })
+          .range(from, to);
+        
+        if (error) {
+          console.error("Services query error:", error);
+          throw error;
+        }
+        
+        console.log("Services fetched successfully:", data?.length || 0);
+        return data || [];
+      } catch (err) {
+        console.error("Exception in useServices:", err);
+        throw err;
+      }
     },
-    retry: 2,
-    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
-    staleTime: 60_000,
+    retry: 1,
+    retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 2000),
+    staleTime: 300_000, // 5 minutes cache
     refetchOnWindowFocus: false,
+    refetchOnMount: true, // Allow refetch on mount
+    refetchOnReconnect: false,
   });
 
   // Add legacy compatibility properties
@@ -256,51 +297,40 @@ export function useAppointments() {
   return useQuery({
     queryKey: ["appointments"],
     queryFn: async () => {
-      console.log('Fetching appointments...');
-      
-      // Get appointments with related data
-      const { data, error } = await simpleSupabase
-        .from("appointments")
-        .select(`
-          id,
-          patient_profile_id,
-          service_id,
-          date,
-          start_time,
-          end_time,
-          appointment_status,
-          payment_status,
-          price_cents,
-          mode,
-          location_address,
-          transaction_id,
-          created_at,
-          services(
+      try {
+        // Simplified query to avoid complex joins that cause timeouts
+        const { data, error } = await simpleSupabase
+          .from("appointments")
+          .select(`
             id,
-            name,
+            patient_profile_id,
+            service_id,
+            date,
+            start_time,
+            end_time,
+            appointment_status,
+            payment_status,
             price_cents,
-            professional_id,
-            professionals(
-              id,
-              profile_id,
-              profile:profiles!inner(
-                id,
-                first_name,
-                last_name,
-                email
-              )
-            )
-          )
-        `)
-        .order('date', { ascending: false });
+            mode,
+            location_address,
+            transaction_id,
+            created_at
+          `)
+          .order('date', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching appointments:', error);
-        throw error;
+        if (error) {
+          throw error;
+        }
+
+        return data || [];
+      } catch (err) {
+        throw err;
       }
-
-      return data || [];
     },
+    staleTime: 300_000, // 5 minutes cache
+    refetchOnWindowFocus: false,
+    refetchOnMount: true, // Allow refetch on mount
+    refetchOnReconnect: false,
   });
 }
 
@@ -480,6 +510,12 @@ export function useEvents() {
       if (error) throw error;
       return (data || []) as Event[];
     },
+    retry: 1,
+    retryDelay: (attempt) => Math.min(500 * 2 ** attempt, 2000),
+    staleTime: 300_000, // 5 minutes cache
+    refetchOnWindowFocus: false,
+    refetchOnMount: false, // Don't refetch if data exists
+    refetchOnReconnect: false,
   });
 }
 
@@ -1220,5 +1256,51 @@ export function useWithdrawals() {
       if (error) throw error;
       return (data || []) as WithdrawalItem[];
     },
+  });
+}
+
+// Simple hook to get all professionals for mapping
+export function useAllProfessionals() {
+  return useQuery({
+    queryKey: ["all-professionals"],
+    queryFn: async () => {
+      const { data, error } = await simpleSupabase
+        .from("professionals")
+        .select(`
+          id,
+          profile_id,
+          profession,
+          specialization,
+          years_experience
+        `);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 300_000, // 5 minutes cache
+    refetchOnWindowFocus: false,
+    refetchOnMount: true, // Allow refetch on mount
+    refetchOnReconnect: false,
+  });
+}
+
+// Simple hook to get all categories for mapping
+export function useAllCategories() {
+  return useQuery({
+    queryKey: ["all-categories"],
+    queryFn: async () => {
+      const { data, error } = await simpleSupabase
+        .from("categories")
+        .select(`
+          id,
+          name,
+          slug
+        `);
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 300_000, // 5 minutes cache
+    refetchOnWindowFocus: false,
+    refetchOnMount: true, // Allow refetch on mount
+    refetchOnReconnect: false,
   });
 }
