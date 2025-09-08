@@ -631,7 +631,7 @@ const DoctorDashboard = () => {
             .from("profiles")
             .select("id, first_name, last_name, email, avatar_url")
             .eq("id", patientId)
-            .single();
+            .maybeSingle();
 
           if (data && !error) {
             patientDataMap[patientId] = data;

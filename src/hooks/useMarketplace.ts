@@ -1058,9 +1058,9 @@ export function useSupportMessages(page = 1, pageSize = 20) {
 export interface PatientListItem {
   profile_id: string;
   name: string;
+  email: string | null;
   avatar_url: string | null;
   last_appointment_at: string | null;
-  // Note: email removed for privacy - professionals should not see patient emails
 }
 
 export function usePatients(professionalId: string | undefined) {
@@ -1094,6 +1094,7 @@ export function usePatients(professionalId: string | undefined) {
             map.set(pid, {
               profile_id: pid,
               name: fullName || "Patient",
+              email: row?.patient?.email ?? null,
               avatar_url: row?.patient?.avatar_url ?? null,
               last_appointment_at: ts,
             });
