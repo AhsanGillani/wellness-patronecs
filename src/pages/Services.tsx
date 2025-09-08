@@ -2,7 +2,12 @@ import Header from "@/components/site/Header";
 import Footer from "@/components/site/Footer";
 import Button from "@/components/ui/button";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { simpleSupabase } from "@/lib/simple-supabase";
+import {
+  useServices,
+  useAllProfessionals,
+  useAllCategories,
+  useProfiles,
+} from "@/hooks/useMarketplace";
 import article1 from "@/assets/article-1.jpg";
 import article2 from "@/assets/article-2.jpg";
 import article3 from "@/assets/article-3.jpg";
@@ -31,8 +36,6 @@ type ServiceRow = {
 };
 
 const Services = () => {
-  const [services, setServices] = useState<ServiceRow[]>([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [category, setCategory] = useState<string>("All specialties");
@@ -40,6 +43,12 @@ const Services = () => {
   const [activeChip, setActiveChip] = useState<string>("");
   const [page, setPage] = useState(1);
   const pageSize = 10;
+
+  // Use optimized hooks for data fetching
+  const { data: servicesData, isLoading: loading, error } = useServices(1, 100);
+  const { data: allProfessionals } = useAllProfessionals();
+  const { data: allCategories } = useAllCategories();
+  const { data: profiles } = useProfiles(1, 100);
 
   // State for service details modal/popup
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -61,32 +70,47 @@ const Services = () => {
     return () => clearTimeout(timer);
   }, [search]);
 
-  // Fetch services from database
-  useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        setLoading(true);
-        const { data, error } = await simpleSupabase
-          .from("services")
-          .select(
-            `
-            id, slug, name, duration_min, price_cents, mode, description, image_url,
-            professional:professionals!inner(slug, profession, profile:profiles!inner(first_name, last_name)),
-            category:categories(name, slug)
-          `
-          )
-          .order("id", { ascending: true });
+  // Transform services data to match expected format
+  const services = useMemo(() => {
+    if (!servicesData || !allProfessionals || !allCategories || !profiles)
+      return [];
 
-        if (error) throw error;
-        setServices((data || []) as unknown as ServiceRow[]);
-      } catch (err: unknown) {
-        console.error("Error fetching services:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchServices();
-  }, []);
+    return servicesData.map((service) => {
+      const professionalRecord = allProfessionals.find(
+        (p) => p.id === service.professional_id
+      );
+      const professionalProfile = professionalRecord
+        ? profiles.find((p) => p.id === professionalRecord.profile_id)
+        : null;
+
+      const professional = professionalRecord
+        ? {
+            slug: professionalProfile?.slug || "",
+            profession: professionalRecord.profession || null,
+            profile: {
+              first_name: professionalProfile?.first_name || null,
+              last_name: professionalProfile?.last_name || null,
+            },
+          }
+        : null;
+
+      const categoryRecord = allCategories.find(
+        (c) => c.id === service.category_id
+      );
+      const category = categoryRecord
+        ? {
+            name: categoryRecord.name,
+            slug: categoryRecord.slug,
+          }
+        : null;
+
+      return {
+        ...service,
+        professional,
+        category,
+      } as ServiceRow;
+    });
+  }, [servicesData, allProfessionals, allCategories, profiles]);
 
   // Use the same fallback image logic as other pages for consistency
   const localImages = [article1, article2, article3, avatar1, avatar2, avatar3];
