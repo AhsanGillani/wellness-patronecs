@@ -629,9 +629,13 @@ const DoctorDashboard = () => {
     if (!appointments || appointments.length === 0) return;
 
     const fetchPatientData = async () => {
+      console.log("🔍 Starting patient data fetch for appointments:", appointments.length);
+      
       const patientIds = [
         ...new Set(appointments.map((apt) => apt.patient_profile_id)),
       ];
+
+      console.log("👥 Unique patient IDs to fetch:", patientIds);
 
       // Skip if no patient IDs or if we already have the data
       if (patientIds.length === 0) return;
@@ -639,24 +643,29 @@ const DoctorDashboard = () => {
       setPatientDataLoading(true);
       const patientDataMap: Record<string, any> = {};
 
-      // Use Promise.all for better performance
-      const promises = patientIds.map(async (patientId) => {
-        try {
-          const { data, error } = await supabase
-            .from("profiles")
-            .select("id, first_name, last_name, email, avatar_url")
-            .eq("id", patientId)
-            .maybeSingle();
+      try {
+        // Fetch all patient data in one query for better performance
+        const { data: patientsData, error } = await supabase
+          .from("profiles")
+          .select("id, first_name, last_name, email, avatar_url")
+          .in("id", patientIds);
 
-          if (data && !error) {
-            patientDataMap[patientId] = data;
-          }
-        } catch (err) {
-          console.error("Error fetching patient data for ID:", patientId, err);
+        if (error) {
+          console.error("❌ Error fetching patient data:", error);
+        } else {
+          console.log("✅ Patient data fetched successfully:", patientsData?.length || 0);
+          console.log("📋 Sample patient data:", patientsData?.[0]);
+          
+          // Map the data by patient ID
+          patientsData?.forEach(patient => {
+            patientDataMap[patient.id] = patient;
+          });
         }
-      });
+      } catch (err) {
+        console.error("❌ Exception in patient data fetch:", err);
+      }
 
-      await Promise.all(promises);
+      console.log("🗂️ Final patient data map:", Object.keys(patientDataMap).length, "patients");
       setPatientData(patientDataMap);
       setPatientDataLoading(false);
     };
